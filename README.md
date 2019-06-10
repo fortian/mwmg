@@ -12,6 +12,7 @@ and the units on the right.
 
 # Quick Start
 
+- Build the software with GNU Make (i.e, run `make` on a Linux host).
 - On each container, VM, machine, or other sort of host of interest, run `pcapper`.
 - On the monitoring host(s), run `recollect | mwmg` or `svcreqollect | mwmg`, with suitable configuration files in the current working directory.
 - Click a name in the MWMG control window that appears to show or hide a
@@ -133,6 +134,11 @@ The snippets above would appear on disk as:
     2:192.168.100.101:7073
     3:192.168.100.101:7074
 
+
+## SvcReqollect Syntax and Configuration
+
+TBD
+
 ## MWMG Syntax and Configuration
 
 Usage: `mwmg [-c CONFIG] [-d OUTDIR] [-g] [-i INTERVAL] [-n NSYS] [-t TITLE] [-u UNITS] [-w WINSPEC]`
@@ -207,7 +213,19 @@ Finally, the lines starting with `Memory=`, `Processor=` and `Delay=` are
 ignored unless `SHOW_STATISTICS` was enabled for both `pcapper` and `mwmg`
 when they were compiled (which is not currently recommended).
 
+# CORE Integration
+
+TBD
+
 # Known Missing Features
+
+- `svcreqollect` needs to be documented and the compilation process needs
+  explanation.
+
+- `replay-pcapper.pl` needs to be documented.
+
+- CORE integration, based upon work by Neil Fenwick, needs to be included
+  and documented.
 
 - `pcapper` doesn't use multicast to talk to multiple collectors at once.
 

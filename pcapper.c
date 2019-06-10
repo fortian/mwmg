@@ -38,11 +38,7 @@ See the file LICENSE which should have accompanied this software. */
 #define DSTFILTER "ether src not %s"
 #define SPOFILTER "src %s and ether src not %s"
 #define FILTERLEN 64
-#if 0
-#define LOGFILE "/mantis/current_run/logs/pcapper.log"
-#else
 #define LOGFILE "pcapper.log"
-#endif
 
 fd_set bigfs = { { 0 } };
 pthread_mutex_t biglock = PTHREAD_MUTEX_INITIALIZER;
