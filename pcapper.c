@@ -634,22 +634,15 @@ int main(int argc, char *argv[]) {
     struct bpf_program filter;
     char filterstr[64];
     char listendev[IFNAMSIZ] = LISTENDEV;
+#if 0
     char serverdev[IFNAMSIZ] = SERVERDEV;
+#endif
     uint16_t port = PCAPPER_PORT;
     char mac[MACLEN];
     int mode = MODE_SRC;
 
     for (i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "-s")) {
-            if (++i < argc) {
-                strncpy(serverdev, argv[i], IFNAMSIZ);
-                serverdev[IFNAMSIZ - 1] = 0;
-            } else {
-                fputs("You must specify an interface name when using -s.\n",
-                    stderr);
-                return 9;
-            }
-        } else if (!strcmp(argv[i], "-p")) {
+        if (!strcmp(argv[i], "-p")) {
             if (++i < argc) {
                 port = atoi(argv[i]);
                 if (!port) {
@@ -660,6 +653,17 @@ int main(int argc, char *argv[]) {
                 fputs("You must specify a port when using -p.\n", stderr);
                 return 14;
             }
+#if 0
+        } else if (!strcmp(argv[i], "-s")) {
+            if (++i < argc) {
+                strncpy(serverdev, argv[i], IFNAMSIZ);
+                serverdev[IFNAMSIZ - 1] = 0;
+            } else {
+                fputs("You must specify an interface name when using -s.\n",
+                    stderr);
+                return 9;
+            }
+#endif
         } else if (!strcmp(argv[i], "-f")) {
             if (++i < argc) {
                 logfn = argv[i];
@@ -692,7 +696,7 @@ int main(int argc, char *argv[]) {
                 return 20;
             }
         } else {
-            fprintf(stderr, "Usage: %s [-f logfile] [-s interface] [-p port] "
+            fprintf(stderr, "Usage: %s [-f logfile] [-p port] "
                 "[-i interface] [-m <src | dst | spoof>]\n", argv[0]);
             return 12;
         }
@@ -739,12 +743,14 @@ int main(int argc, char *argv[]) {
         return 7;
     }
 
+#if 0
     if ((i = getip(&sin.sin_addr, serverdev, NULL))) {
         fprintf(stderr, "Could not get IP address for %s: %s\n",
             serverdev, strerror(i));
         pcap_close(pch);
         return 17;
     }
+#endif
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
