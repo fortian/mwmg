@@ -27,6 +27,8 @@ underneath `config/`; i.e.,
 
 # Other Utilities
 
+## Replay
+
 In addition to the programs above, a debugging script
 [`replay-pcapper.pl`](blob/master/replay-pcapper.pl) demonstrates how to
 replay a previous run, using only `mwmg` and saved `pcapper` logfiles.
@@ -40,3 +42,56 @@ Usage: `replay-pcapper.pl` *storage-directory* `| mwmg`
 
 Warning: this utility has not been updated in some time.  It may need to be
 updated to match the current `pcapper` log format.
+
+## Other Inputs
+
+Anything that can provide input to `recollect` (if broadly spread across
+much of the network) or to `mwmg` (if already aggregated) can be used to
+generate graphs.
+
+The information below can be used to create new agents for `recollect` to
+interrogate or new aggregators for `pcapper` and/or `mwmg`.
+
+### Agent-Collector Protocol
+
+Recollect consumes an unversioned binary packet format.  Future versions of
+`recollect` will either be able to process this format, or will terminate
+the connection to the agent if they cannot.
+
+All sizes below are in bytes.  All numbers are unsigned and in network
+order.  PCapper takes all values from the original packet whenever possible.
+
+Name | Length | Note
+-|-
+Seconds | 4 | Seconds since the epoch
+Microseconds | 4 | Microseconds since the second
+Source Address | 4 | IPv4 source address
+Destination Address | 4 | IPv4 destination address
+Source Port | 2 | 
+Destination Port | 2 |
+Length | 2 | Packet length in bytes
+Flow-ID | 4 | MGEN Flow-ID, if identified
+Protocol | 1 | UDP, TCP (others possible; currently ignored)
+Flags | 1 | Reserved, must be 0
+
+Additional data will be appended and ignored by clients which don't support
+it.
+
+### Collector-Grapher Protocol
+
+MWMG consumes an unversioned text format.  Future versions of `mwmg` will
+wither be able to process this format or will exit immediately upon receipt
+of an invalid line.
+
+All line end with a UNIX newline (ASCII NL [0x0A]: `\n`).  All numbers are
+base ten.  `mwmg` expects network traffic in bits, as is typical for network
+analysis, and doesn't multiply values by 8.  Each field is delimited with a
+colon (`:`).
+
+Name | Sample | Note
+-|-|-
+Timestamp | `1560390672.895279` | 
+Host ID | `3` | One-based; zero is invalid
+Flow ID | `1` | One-based; zero is invalid
+Value | `732` | Number of bits, current temperature, whatever
+Level | `0` | Primary or Secondary data; usually 0
