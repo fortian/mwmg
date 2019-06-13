@@ -20,10 +20,10 @@ and the units on the right.
 
 Each utility is documented in the README inside their respective folder
 underneath `config/`; i.e.,
-- [pcapper](blob/master/config/pcapper/README.md)
-- [recollect](blob/master/config/recollect/README.md)
-- [svcreqollect](blob/master/config/svcreqollect/README.md)
-- [mwmg](blob/master/config/mwmg/README.md)
+- [pcapper](config/pcapper/README.md)
+- [recollect](config/recollect/README.md)
+- [svcreqollect](config/svcreqollect/README.md)
+- [mwmg](config/mwmg/README.md)
 
 # Other Utilities
 
