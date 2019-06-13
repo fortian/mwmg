@@ -63,9 +63,3 @@ and to ports 2020 and 2021.
 ## Hosts of Interest
 
 Each entry in the JSON file (typically `node_info.json` in a well-known directory) that contains the (case-sensitive) characters "Host" in the name will be included as a host of interest to `svcreqollect`.
-
-# Open Issues
-
-- Sample JSON is missing.
-
-- Too many things are hard-coded.

@@ -136,26 +136,3 @@ at least one pixel tall.
 
 Unknown traffic is always shown in black, for lack of any better
 alternative.
-
-# Open Issues
-
-- `mwmg` has a double-free on exit, which should be removed.  This is
-  believed to be harmless.
-
-- `mwmg` has trouble making Unity honor its window positions, especially
-  when running via X forwarding, and especially when being forwarded onto an
-  X server with multiple displays.
-
-- Occasionally, `mwmg` will crash at launch due to a problem allocating
-  colors.  This is harmless, though embarrassing; re-launch the `mwmg`
-  pipeline (i.e., `recollect | mwmg` or the like).
-
-- `mwmg` and `recollect` should use JSON for their configuration files
-  instead of the ancient DSL which predates JSON.
-
-- `mwmg` only displays host IDs by the number provided by `recollect` or
-  `svcreqollect`; it should be able to map numbers to names.
-
-- `mwmg`'s data collection duration should be specifiable on the command
-  line, and unlimited collection should be possible (within the extent of
-  available memory on the host).

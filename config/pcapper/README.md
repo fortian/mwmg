@@ -103,19 +103,3 @@ launch a single instance of `pcapper` on hosts with a single interface of
 interest (and a second on hosts with two interfaces of interest).  It has
 been adapted by Fortian to demonstrate running additional instances to
 observe received traffic instead of sourced traffic.
-
-# Open Issues
-
-- PCapper only monitors IPv4 traffic and only analyzes TCP and UDP.
-
-- The MGEN flow-id analysis is ad-hoc, and may have false positives.
-
-- PCapper treats fragments as having been sent entirely at the transmission
-  of the first packet in the fragment.  Retransmissions of fragments later
-  in the fragmented packet stream are not accounted for.  (Usually, UDP
-  traffic of interest is sent with the DF bit set, so this is generally
-  irrelevant, but may lead to anomalies in the presence of jumbo frames or
-  mismatched MTUs.)
-
-- PCapper doesn't use multicast, which would benefit deployments with
-  multiple receivers or on some kinds of wireless networks.

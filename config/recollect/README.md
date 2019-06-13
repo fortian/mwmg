@@ -140,8 +140,3 @@ If you're getting:
 Note that `mwmg` will believe `recollect` and will place packets in the
 time-based bucket identified.  If `mwmg` is on the same host as `recollect`,
 and that host is overloaded, graph update times may be quite irregular.
-
-# Open Issues
-
-- `mwmg` and `recollect` should use JSON for their configuration files
-  instead of the ancient DSL which predates JSON.
