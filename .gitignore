@@ -43,4 +43,4 @@
 *.pdb
 
 # Editor garbage
-.sw?
+*.sw?
