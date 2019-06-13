@@ -41,9 +41,3 @@
 *.su
 *.idb
 *.pdb
-
-# Binaries
-pcapper
-mwmg
-recollect
-svcreqollect
