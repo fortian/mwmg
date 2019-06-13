@@ -93,6 +93,6 @@ Name | Sample | Note
 -|-|-
 Timestamp | `1560390672.895279` | 
 Host ID | `3` | One-based; zero is invalid
-Flow ID | `1` | One-based; zero is invalid
+Flow ID | `1` | One-based; zero is invalid; `X` indicates unknown
 Value | `732` | Number of bits, current temperature, whatever
 Level | `0` | Primary or Secondary data; usually 0
