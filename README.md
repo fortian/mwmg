@@ -61,18 +61,18 @@ the connection to the agent if they cannot.
 All sizes below are in bytes.  All numbers are unsigned and in network
 order.  PCapper takes all values from the original packet whenever possible.
 
-Name | Length | Note
--|-
-Seconds | 4 | Seconds since the epoch
-Microseconds | 4 | Microseconds since the second
-Source Address | 4 | IPv4 source address
-Destination Address | 4 | IPv4 destination address
-Source Port | 2 | 
-Destination Port | 2 |
-Length | 2 | Packet length in bytes
-Flow-ID | 4 | MGEN Flow-ID, if identified
-Protocol | 1 | UDP, TCP (others possible; currently ignored)
-Flags | 1 | Reserved, must be 0
+Name                | Length | Note
+--------------------|--------|-----
+Seconds             | 4      | Seconds since the epoch
+Microseconds        | 4      | Microseconds since the second
+Source Address      | 4      | IPv4 source address
+Destination Address | 4      | IPv4 destination address
+Source Port         | 2      |
+Destination Port    | 2      |
+Length              | 2      | Packet length in bytes
+Flow-ID             | 4      | MGEN Flow-ID, if identified
+Protocol            | 1      | UDP, TCP (others possible; currently ignored)
+Flags               | 1      | Reserved, must be 0
 
 Additional data will be appended and ignored by clients which don't support
 it.
