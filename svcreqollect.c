@@ -52,7 +52,7 @@ const int interval = 15; /* XXX make me configurable */
 #define SVC_REQ_URI "http://127.0.0.1:8618/stats/net/servicerequests"
 /* #define PRIORITY_REQ_URI "http://172.16.0.30/stats/conf/priority_table" */
 
-/* #define NODE_INFO "/home/caas/demo/casey/node_info.json" */
+/* #define NODE_INFO "/home/user/demo/casey/node_info.json" */
 #define NODE_INFO "node_info.json"
 
 #if 0

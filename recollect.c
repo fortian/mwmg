@@ -55,7 +55,7 @@ static void addconn(char *s) {
     char *idx, *hyp;
     int sock = -1;
     int mgen = 0; /* XXX reuses fields/flags, assumes USE_MGEN is always set */
-#if 0
+#ifdef TRY_SETSOCKOPT
     struct linger l = { 0, 0 };
     int one = 1;
 #endif
@@ -118,7 +118,10 @@ static void addconn(char *s) {
         ((port = strtok(NULL, "\n")) != NULL) && *port &&
         inet_aton(ip, &sin.sin_addr) && (sin.sin_port = htons(atoi(port))) &&
         ((sock = socket(AF_INET, SOCK_STREAM, 0)) >= 0)) {
-#if 0
+#ifdef TRY_SETSOCKOPT
+        /* These all consistently failed the last time I tried them under
+        Linux, so they're currently disabled.  You're welcome to try turning
+        them on again; they shouldn't hurt. */
         if (setsockopt(sock, SOL_SOCKET, SO_LINGER, (char *)&l,
             sizeof (struct linger)) < 0) {
             perror("Ignoring error setting socket option SO_LINGER");

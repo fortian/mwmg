@@ -1367,12 +1367,12 @@ int main(int argc, char *argv[]) {
         }
     }
     if (badflag) {
-        printf(line, "Usage: %s [-c CONFIG] [-d OUTDIR] [-g] [-i INTERVAL]\n",
+        printf(line, "Usage: %s [-c CONFIG] [-d RUNDIR] [-g] [-i INTERVAL]\n",
             argv[0]);
         puts(               "     [-n NSYS] [-t TITLE]     [-u UNITS] [-w WINSPEC]");
         puts("    CONFIG is the fully qualified filename of the MWMG configuration file");
         puts("        (default: " CONFFILE " in the current working directory)");
-        puts("    OUTDIR is an existing directory in which to store output files");
+        puts("    RUNDIR is an existing directory in which to store output files");
         puts("        (currently ignored)");
         puts("    -g enables \"gauge\" mode: data points are absolutes instead of deltas");
         puts("    INTERVAL is the number of seconds between sweeps");
@@ -1526,8 +1526,10 @@ int main(int argc, char *argv[]) {
             ofs = 6;
             x = 1;
             focus = nwins - 1;
+#ifdef ENCAPS
         } else if (!strncmp(line, "Encapsulate=", 12)) {
             /* encaptgt = nwins - 1; */
+#endif
         }
         if (x >= 0) {
             if (gdk_color_parse(&line[ofs], &wins[focus].col[x])) {

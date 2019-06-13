@@ -227,6 +227,7 @@ void doarp(struct ether_arp *p) {
     }
 }
 
+#if 0
 void dumppkt(const u_char *pkt) {
     struct packet *p = (struct packet *)pkt;
     int i;
@@ -251,8 +252,13 @@ void dumppkt(const u_char *pkt) {
         default: puts("Unknown type");
     }
 }
+#endif
 
-void logpkt(struct wire *otw, struct wire *encap) {
+void logpkt(struct wire *otw
+#ifdef ENCAPS
+    , struct wire *encap
+#endif
+    ) {
     FILE *f;
     struct in_addr ina;
 
@@ -294,7 +300,9 @@ void logpkt(struct wire *otw, struct wire *encap) {
 void blastpacket(fd_set *f, const u_char *pkt, struct pcap_pkthdr *head) {
     int i;
     struct wire otw = { 0 };
+#ifdef ENCAPS
     struct wire encap = { 0 };
+#endif
     struct in_addr hog;
     char sip[16], dip[16];
     struct ip_pkt *p;
@@ -351,6 +359,7 @@ void blastpacket(fd_set *f, const u_char *pkt, struct pcap_pkthdr *head) {
             otw.len = p->h.tot_len;
             otw.proto = p->h.protocol;
 #ifdef ENCAPS
+            /* This is legacy.  ENCAPS should be disabled unless you use BMF. */
             if ((otw.proto == IPPROTO_UDP) && (otw.dport == ntohs(50698))) {
                 /* it has a header (we already checked if it was a fragment) */
                 if (ntohs(otw.len) < 64) {
@@ -375,7 +384,11 @@ void blastpacket(fd_set *f, const u_char *pkt, struct pcap_pkthdr *head) {
                 }
             }
 #endif
-            logpkt(&otw, &encap);
+#ifdef ENCAPS
+            logpkt(&otw , &encap);
+#else
+            logpkt(&otw);
+#endif
             pthread_mutex_lock(&biglock);
             /* don't report relays yet */
             for (i = 0; i < FD_SETSIZE; i++) if (FD_ISSET(i, f)) {
@@ -384,12 +397,14 @@ void blastpacket(fd_set *f, const u_char *pkt, struct pcap_pkthdr *head) {
                     FD_CLR(i, f);
                     shutdown(i, SHUT_RDWR);
                     close(i);
+#ifdef ENCAPS
                 } else if (encap.encapped &&
                     (send(i, &encap, sizeof (encap), MSG_NOSIGNAL) < 0)) {
                     perror("send encapped error");
                     FD_CLR(i, f);
                     shutdown(i, SHUT_RDWR);
                     close(i);
+#endif
                 }
             }
             pthread_mutex_unlock(&biglock);
@@ -399,6 +414,7 @@ void blastpacket(fd_set *f, const u_char *pkt, struct pcap_pkthdr *head) {
     }
 }
 
+#ifdef SHOW_STATISTICS
 uint64_t readmem(void) {
     FILE *f;
     char buf[BUFSIZ];
@@ -491,12 +507,14 @@ int readstat(uint64_t *d) {
     fclose(f);
     return ncpu;
 }
+#endif
 
 long tvdiff(struct timeval *start, struct timeval *end) {
+    struct timeval tv;
     long rv;
 
-    rv = (end->tv_sec - start->tv_sec) * 1000000;
-    rv += end->tv_usec - start->tv_usec;
+    timersub(end, start, &tv);
+    rv = tv.tv_sec * 1000000 + tv.tv_usec;
     return rv;
 }
 
@@ -812,8 +830,9 @@ int main(int argc, char *argv[]) {
     for (;;) {
         packet = pcap_next(pch, &head);
         if (packet != NULL) {
-            /* dumppacket(packet, head.caplen); */
-            /* dumppkt(packet); */
+#if 0
+            dumppkt(packet);
+#endif
             blastpacket(&bigfs, packet, &head);
         }
     }
