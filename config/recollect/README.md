@@ -15,7 +15,9 @@ Usage: `recollect [-c config]`
 specified in its configuration file (by default, `collector.conf` in the
 current working directory).
 
-For troubleshooting, you can run `recollect` without piping its standard output to `mwmg`.  Errors are printed to standard error, as typical, and cause `recollect` to exit with a non-zero error code.
+For troubleshooting, you can run `recollect` without piping its standard
+output to `mwmg`.  Errors are printed to standard error and cause
+`recollect` to exit with a non-zero error code.
 
 `recollect` generally runs until interrupted with Control-C, but will also
 exit if standard output closes.
@@ -23,7 +25,10 @@ exit if standard output closes.
 Each line of output has the following format, and is terminated with `\n`
 (ASCII `0x0A`, aka line feed, `LF`, or newline).
 
-`host:id:length`
+`timwstamp:host:id:length`
+
+- `timestamp` is the timestamp from the packet's header, as provided by
+  `pcapper`
 
 - `host` refers to the serial number of the host from the `collector.conf`
   file
@@ -101,6 +106,40 @@ The snippets above could appear on disk as:
     1:192.168.100.100:7073
     2:192.168.100.101:7073
     3:192.168.100.101:7074
+
+# Diagnostics
+
+
+
+Each time `recollect` receives a packet, it examines the timestamp.  If the
+number of seconds since the epoch differs from that of the previous packet,
+`recollect` will print the new time in HH:MM:SS format.  If this timestamp
+changes more than once per second, `recollect` is processing packets in
+non-real-time.
+
+If you're getting:
+
+- Times consistently older than the current second:
+
+  - The host running `recollect` is likely to be overloaded
+
+  - A network link, usually between `recollect` and the agents, is experiencing severe latency
+
+  - Possibly all of the hosts under test are overloaded
+
+- Timestamps flipping between two different seconds frequently:
+
+  - A host under test is probably overloaded, or many are
+
+  - A network link, possibly between `recollect` and the agents, is experiencing severe jitter
+
+- Times in the future:
+
+  - Your network is not properly time-synchronized
+
+Note that `mwmg` will believe `recollect` and will place packets in the
+time-based bucket identified.  If `mwmg` is on the same host as `recollect`,
+and that host is overloaded, graph update times may be quite irregular.
 
 # Open Issues
 

@@ -170,7 +170,11 @@ foreach (@logs) {
     }
     $lastn = $id;
 }
-print STDERR "\rAll logfiles loaded, now sorting and beginning replay...\n";
+print STDERR "\rAll logfiles loaded, now sorting...\n";
+
+my @keys = sort keys %data;
+
+print STDERR "\rNow beginning replay...            \n";
 
 $| = 1;
 

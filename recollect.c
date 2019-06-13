@@ -286,8 +286,6 @@ int consume(int i) { /* Format change on 2015 08 07 */
         (otw.saddr == 2) && (otw.daddr == 2) &&
         (ntohl(otw.flowid) == FLOWID_MEM)) { /* memory report */
         when = ntohl(otw.sec);
-        DPRINTF(0, "%u.%06d:%s:M:%u:0\n", when, ntohl(otw.usec),
-            sys[i].s, (ntohs(otw.len) << 8) * 1024);
         printf("%u.%06d:%s:M:%u:0\n", when, ntohl(otw.usec),
             sys[i].s, (ntohs(otw.len) << 8) * 1024);
 #endif

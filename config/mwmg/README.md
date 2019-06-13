@@ -52,6 +52,11 @@ formatted by `recollect` (or `svcreqollect`), bucketing it over each
 interval, and displaying near-real-time results.  (All data is delayed by
 the length of one interval.)
 
+`mwmg` can be configured at compile-time to exit after a specific amount of
+time has passed, or to keep running until closed.  It can be stopped by the
+window manager, with `xkill` on the control window, by sending it a `TERM`
+signal, or with Control-C.
+
 # Configuration
 
 For historical reasons, `mwmg` uses a format similar to `.ini` files.  Order
@@ -98,7 +103,6 @@ Any parse error in the configuration file will cause `mwmg` to print an
 error on standard error and exit with a non-zero status.
 
 `mwmg` will stall at launch until it standard input has data available.
-It will then display the last update time, in HH:MM:SS format.
 
 # Displays
 

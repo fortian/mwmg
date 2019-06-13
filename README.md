@@ -25,74 +25,18 @@ underneath `config/`; i.e.,
 - [svcreqollect](blob/master/config/svcreqollect/README.md)
 - [mwmg](blob/master/config/mwmg/README.md)
 
+# Other Utilities
 
-# Known Missing Features
+In addition to the programs above, a debugging script
+[`replay-pcapper.pl`](blob/master/replay-pcapper.pl) demonstrates how to
+replay a previous run, using only `mwmg` and saved `pcapper` logfiles.
+Create a storage directory.  Inside this new directory, create a
+subdirectory for each system, named `TN-#`, where *#* is the two-digit host
+identifier used by `recollect` (with or without leading zeroes, as you
+prefer).  Inside each subdirectory, place a PCapper logfile named
+`runtime.log`.
 
-- `svcreqollect` needs to be documented and the compilation process needs
-  explanation.
+Usage: `replay-pcapper.pl` *storage-directory* `| mwmg`
 
-- `replay-pcapper.pl` needs to be documented.
-
-- CORE integration, based upon work by Neil Fenwick, needs to be included
-  and documented.
-
-- `pcapper` doesn't use multicast to talk to multiple collectors at once.
-
-- `pcapper` only understands IP packets, and specifically IPv4.
-
-- `recollect` doesn't attempt to reconnect to hosts if communications are
-  interrupted.
-
-- `mwmg` has a double-free on exit, which should be removed.  It is
-  otherwise harmless.
-
-- `mwmg` has trouble making Unity honor its window positions, especially
-  when running via X forwarding, and especially when being forwarded onto an
-  X server with multiple displays.
-
-- Occasionally, `mwmg` will crash at launch due to a problem allocating
-  colors.  This is harmless, though embarrassing; re-launch the `mwmg`
-  pipeline (i.e., `recollect | mwmg` or the like).
-
-- `mwmg` and `recollect` should use JSON for their configuration files
-  instead of the ancient DSL which predates JSON.
-
-- `mwmg` only displays host IDs by the number provided by `recollect` or
-  `svcreqollect`; it should be able to map numbers to names.
-
-- `mwmg`'s data collection duration should be specifiable on the command
-  line, and unlimited collection should be possible (within the extent of
-  available memory on the host).
-
-# Displays
-
-MWMG specifically shows both instantaneous ("vu-meter") bar graphs and
-historical ("strip-chart") bar graphs (though these bars are often a single
-pixel wide).
-
-## Instantaneous Graphs
-
-Instantaneous graphs update every *n* seconds (usually 1) and show traffic
-over the previous second, broken out by source (or destination).
-
-## Historical Graphs
-
-Historical graphs also update every *n* seconds, but show total traffic
-recorded since data started flowing.  Each interval is collected into a
-bucket, and these buckets are merged as needed to fit the graph onto the
-bottom of the window.  This means that, depending upon the width of the
-window, 1 pixel may represent multiple intervals of data, or each interval
-may take up more than one pixel of width.
-
-## Other Graphs
-
-In addition to the graphs defined in the configuration files, an Aggregate
-graph and an Unknown graph are always generated.  Aggregate traffic is shown
-with all traffic per interval in a single bar graph on top and all
-historical traffic on bottom.  Traffic is colored to match the colors
-defined for each traffic type, and is scaled proportionately, except that if
-a given traffic type appeared during the interval or run, it will always be
-at least one pixel tall.
-
-Unknown traffic is always shown in black, for lack of any better
-alternative.
+Warning: this utility has not been updated in some time.  It may need to be
+updated to match the current `pcapper` log format.
