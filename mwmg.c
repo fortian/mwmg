@@ -73,7 +73,7 @@ See the file LICENSE which should have accompanied this software. */
 #endif
 
 struct win *wins = NULL;
-unsigned curtime = 0;
+unsigned long curtime = 0;
 int nwins = 0;
 int nsys = DEFNSYS;
 int showwins = 0;
@@ -124,7 +124,7 @@ static void update_multi_bottom(int which, int draww, int drawh);
 static GtkWindow *create_win(int which, const char *tag);
 
 // ignores args; they're from a version that tried to mmap them
-static void *falloc(int id, unsigned curtime) {
+static void *falloc(int id, unsigned long curtime) {
     void *rv = NULL;
 
     rv = calloc(2 * DEFTLEN * nsys, sizeof (unsigned long));
@@ -768,11 +768,7 @@ static void update_multi_top(int which, int draww, int drawh, double xscal) {
     int delta = 1;
     int spacer;
 
-    cxtime = curtime - 1;
-    if (cxtime < 0) {
-        cxtime = 0;
-    }
-
+    cxtime = curtime ? (curtime - 1) : 0;
     spacer = DEFTLEN * nsys;
 
     lmax = 0.0;
@@ -842,14 +838,26 @@ void update_top(int which, int draww, int drawh, double xscal) {
     int i;
     double lmax;
     double yscal;
-    struct win *win = &wins[which];
-    int cxtime = curtime - 1;
+    unsigned long cxtime;
     int dofs, iofs;
     int gb;
+    struct win *win;
 
+    cxtime = curtime ? curtime - 1 : 0;
     if (cxtime < 0) {
         cxtime = 0;
     }
+
+    if ((which >= 0) && (which < nwins)) {
+        win = &wins[which];
+    } else {
+        fprintf(stderr,
+            "MWMG: critical: update_top called with which=%d,\n"
+            "\tdraww=%d, drawh=%d, xscal=%g for bucket %lu\n",
+            which, draww, drawh, xscal, cxtime);
+        return;
+    }
+
     xscal = (double)draww / nsys;
     gb = ALLOC_HEIGHT(win->das[0]) - M_BOT + 1;
 
@@ -1155,6 +1163,7 @@ static void readin(gpointer data, gint source, GdkInputCondition condition) {
     int encapped;
     guint *gta = (guint *)data;
     static int done = 0;
+    unsigned long totlen = 2 * DEFTLEN * nsys * sizeof (unsigned long);
 
     if (!done) {
         /* Since we got triggered, there must be input. */
@@ -1171,10 +1180,14 @@ static void readin(gpointer data, gint source, GdkInputCondition condition) {
         done++;
     }
 
-    if (curtime >= DEFTLEN) {
+    errno = 0;
+    if ((curtime >= DEFTLEN) || (fgets(line, BUFSIZ, stdin) == NULL)) {
 #if defined(DEBUG) && ((__SIZEOF_LONG__ == __SIZEOF_WCHAR_T) || (__SIZEOF_LONG__ == 4) || (__SIZEOF_LONG__ == 8))
-        if (curtime == DEFTLEN) {
-            for (incr = 0, i = 0; i < 2 * DEFTLEN * nsys * sizeof (unsigned long); i++) {
+        if (errno) {
+            perror("MWMG pipeline read");
+#ifdef DEBUG
+        } else if (curtime == DEFTLEN) { /* only do this once */
+            for (incr = 0, i = 0; i < totlen; i++) {
                 if (wins[W_NET].samps[i] !=
 #if (__SIZEOF_LONG__ == __SIZEOF_WCHAR_T) || (__SIZEOF_LONG__ == 4)
                     0xdeadbeef
@@ -1185,27 +1198,28 @@ static void readin(gpointer data, gint source, GdkInputCondition condition) {
                     incr++;
                 }
             }
+            if (incr < totlen) {
+                fprintf(stderr, "As of %lu, only %lu samples of %lu were initialized.\n", curtime, incr, totlen);
+            }
+#endif
         }
 #endif
 
 #ifndef RUN_FOREVER
         gtk_main_quit();
-#else
-        fgets(line, BUFSIZ, stdin); /* consume the input */
 #endif
         return;
     }
-    fgets(line, BUFSIZ, stdin);
+
     line[BUFSIZ - 1] = 0;
-    if ((idx = strtok(line, ":")) == NULL) {
-        return;
-    } else if (((i = atoi(idx)) < start) ||
-        ((idx = strtok(NULL, ":")) == NULL)) {
-        return;
-    } else if (((who = atoi(idx)) <= 0) ||
-        ((idx = strtok(NULL, ":")) == NULL)) {
+
+    /* relies on short-circuit evaluation */
+    if (((idx = strtok(line, ":")) == NULL) ||
+        (((i = atoi(idx)) < start) || ((idx = strtok(NULL, ":")) == NULL)) ||
+        (((who = atoi(idx)) <= 0) || ((idx = strtok(NULL, ":")) == NULL))) {
         return;
     }
+
     if (idx[0] == 'X') {
         flow = W_OTHER;
 #ifdef SHOW_STATISTICS
@@ -1224,10 +1238,12 @@ static void readin(gpointer data, gint source, GdkInputCondition condition) {
         return;
     }
     incr = strtoul(idx, NULL, 10);
+
     if ((idx = strtok(NULL, "\n")) == NULL) {
         return;
     }
     encapped = (*idx != '0');
+
     i -= start;
     /* only update if we have time left */
     who--; /* the collector outputs 1-based */
@@ -1469,7 +1485,15 @@ int main(int argc, char *argv[]) {
 
     nwins = W_USER;
     while (!feof(f)) {
-        fgets(line, 255, f);
+        errno = 0;
+        if (fgets(line, 255, f) == NULL) {
+            if (errno) {
+                fprintf(stderr, "%s: error while reading %s: %s\n",
+                    argv[0], cfg, strerror(errno));
+                return 7;
+            } /* otherwise it was just EOF and no characters were read */
+            break;
+        }
         line[255] = 0;
         x = -1;
         focus = -1;

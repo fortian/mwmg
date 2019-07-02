@@ -7,14 +7,22 @@
 CC=gcc
 
 # Define one of DEBUG or NDEBUG but not both
-DEBUG=-Wunused -Wall -Werror -Wno-deprecated -Wno-error=deprecated-declarations -O0 -ggdb -DDEBUG -UNDEBUG
+DEBUG= -O2 -ggdb -Wunused -Wall -Werror -Wno-deprecated -Wno-error=deprecated-declarations -DDEBUG -UNDEBUG
+# Note that builds without DEBUG have not been tested recently.
 #NDEBUG=-O9 -g -DGTK_NO_CHECK_CASTS -DNDEBUG -UDEBUG
+
+# It's the 21st century, everyone should have GCC 4 or higher.
+# Enable more POSIX compatibility and also turn on fortified string functions.
+EXTRA_FLAGS=-D_FORTIFY_SOURCE=1 -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700 -D_DEFAULT_SOURCE=1
 
 # N.B., SHOW_STATISTICS with USE_MGEN is an untested combination; they use the
 # same field, though in different messages, and flow-ids 1, 2, and 3 are
 # specifically reserved.  More importantly, building without USE_MGEN is also
 # untested with this version of the code; turn it off at your own risk.
-CFLAGS=$(DEBUG) $(NDEBUG) -DBUILD_DATE=\"`date '+%y%m%d.%H%M%S'`\" -DBUILD_USER=\"$(USER)\" -D_REENTRANT -DUSE_MGEN=1 -DENCAP_DBLCOUNT=1 -DRUN_FOREVER=1
+CFLAGS=$(DEBUG) $(NDEBUG) -DBUILD_DATE=\"`date '+%y%m%d.%H%M%S'`\" \
+       -DBUILD_USER=\"$(USER)\" -D_REENTRANT -DUSE_MGEN=1 -DENCAP_DBLCOUNT=1 \
+       -DRUN_FOREVER=1 \
+	$(EXTRA_FLAGS)
 
 # For Gtk+ 1 (may no longer work):
 #GTKCFLAGS=`gtk-config --cflags`

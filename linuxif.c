@@ -63,6 +63,9 @@ int manhandle(char *dsttmac, struct ether_addr *dstbmac, struct in_addr *dstip,
                     sizeof (struct in_addr));
             }
 
+#pragma GCC diagnostic push
+            /* The lines with struct ether_addr * annoy the compiler. */
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
             if (dsttmac != NULL) {
                 if (ioctl(sock, SIOCGIFHWADDR, &ifr[i]) < 0) {
                     rv = errno;
@@ -79,6 +82,7 @@ int manhandle(char *dsttmac, struct ether_addr *dstbmac, struct in_addr *dstip,
                 mac = ((struct ether_addr *)&(ifr[i].ifr_hwaddr.sa_data))->ether_addr_octet;
                 memcpy(dstbmac, mac, 6);
             }
+#pragma GCC diagnostic pop
 
             if (dstidx != NULL) {
                 *dstidx = i;
