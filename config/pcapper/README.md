@@ -103,3 +103,7 @@ launch a single instance of `pcapper` on hosts with a single interface of
 interest (and a second on hosts with two interfaces of interest).  It has
 been adapted by Fortian to demonstrate running additional instances to
 observe received traffic instead of sourced traffic.
+
+An additional service definition, `pcapper-src-many.pl`, has been added to
+demonstrate launching on up to 4 interfaces at once, based upon a hostname
+key.
