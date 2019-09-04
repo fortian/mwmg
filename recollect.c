@@ -37,7 +37,7 @@ fd_set bigfs;
 int lastsock = 0;
 
 struct ssys {
-    char s[NAMELEN];
+    char s[NAMELEN + 1];
     struct sockaddr_in sin;
     int sock;
     int mode;

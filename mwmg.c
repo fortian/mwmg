@@ -139,7 +139,8 @@ static void *falloc(int id, unsigned long curtime) {
 static void blank(int which, int winno) {
     GdkPixmap *px;
     struct win *win;
-    int i, y, end, incr;
+    int y, end, incr;
+    unsigned char i;
     double xscal;
     double x;
     gint h;

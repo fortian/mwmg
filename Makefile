@@ -21,7 +21,7 @@ EXTRA_FLAGS=-D_FORTIFY_SOURCE=1 -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700 -D
 # untested with this version of the code; turn it off at your own risk.
 CFLAGS=$(DEBUG) $(NDEBUG) -DBUILD_DATE=\"`date '+%y%m%d.%H%M%S'`\" \
        -DBUILD_USER=\"$(USER)\" -D_REENTRANT -DUSE_MGEN=1 -DENCAP_DBLCOUNT=1 \
-       -DRUN_FOREVER=1 \
+       -DRUN_FOREVER=1 -Wno-address-of-packed-member \
 	$(EXTRA_FLAGS)
 
 # For Gtk+ 1 (may no longer work):
