@@ -99,16 +99,16 @@ void dumppacket(const unsigned char *pkt, size_t len) {
 }
 
 void do_udp(struct udphdr *p) {
-    printf("Source port: %u\n", p->uh_sport);
-    printf("Destination port: %u\n", p->uh_dport);
-    printf("Length: %u\n", p->uh_ulen);
+    printf("Source port: %u\n", p->source);
+    printf("Destination port: %u\n", p->dest);
+    printf("Length: %u\n", p->len);
 }
 
 void do_tcp(struct tcphdr *p) {
-    printf("Source port: %u\n", p->th_sport);
-    printf("Destination port: %u\n", p->th_dport);
-    printf("Sequence number: %u\n", p->th_seq);
-    printf("Acknowledgement number: %u\n", p->th_ack);
+    printf("Source port: %u\n", p->source);
+    printf("Destination port: %u\n", p->dest);
+    printf("Sequence number: %u\n", p->seq);
+    printf("Acknowledgement number: %u\n", p->ack_seq);
 }
 
 void do_icmp(struct icmphdr *p) {
@@ -333,8 +333,8 @@ void blastpacket(fd_set *f, const u_char *pkt, struct pcap_pkthdr *head) {
             otw.saddr = p->h.saddr;
             otw.daddr = p->h.daddr;
             /* same place in TCP and UDP */
-            memcpy(&otw.sport, &p->p.th.th_sport + (headlen - 20), 2);
-            memcpy(&otw.dport, &p->p.th.th_dport + (headlen - 20), 2);
+            memcpy(&otw.sport, &p->p.th.source + (headlen - 20), 2);
+            memcpy(&otw.dport, &p->p.th.dest + (headlen - 20), 2);
             if (!otw.dport) {
                 hog.s_addr = p->h.saddr;
                 strcpy(sip, inet_ntoa(hog));
@@ -376,8 +376,8 @@ void blastpacket(fd_set *f, const u_char *pkt, struct pcap_pkthdr *head) {
                     headlen = p->h.ihl * 4;
                     encap.saddr = p->h.saddr;
                     encap.daddr = p->h.daddr;
-                    memcpy(&encap.sport, &p->p.th.th_sport + (headlen - 20), 2);
-                    memcpy(&encap.dport, &p->p.th.th_dport + (headlen - 20), 2);
+                    memcpy(&encap.sport, &p->p.th.source + (headlen - 20), 2);
+                    memcpy(&encap.dport, &p->p.th.dest + (headlen - 20), 2);
                     encap.len = p->h.tot_len;
                     encap.proto = p->h.protocol;
                     encap.encapped = 1;
