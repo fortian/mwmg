@@ -46,13 +46,13 @@ any way.  You'll also need to know the "control" network IP of each host running
 
 The example data below will be used to configure each subsystem.
 
-| Name     | Identification               |
-|----------|------------------------------|
-| Chat     | Uses UDP port 1000           |
-| Video    | Uses UDP ports 2000-2100     |
-| FTP      | Uses TCP ports 20-21         |
-| SA       | Uses MGEN flow IDs 1000-1999 |
-| Priority | Uses MGEN flow ID 9999       |
+| Name     | Identification               | Priority |
+|----------|------------------------------|----------|
+| Chat     | Uses UDP port 1000           | 10       |
+| Video    | Uses UDP ports 2000-2100     | 25       |
+| FTP      | Uses TCP ports 20-21         | 50       |
+| SA       | Uses MGEN flow IDs 1000-1999 | 75       |
+| Priority | Uses MGEN flow ID 9999       | 99       |
 
 ## Sample Hosts of Interest
 
@@ -256,8 +256,17 @@ probably the most useful one.
 
 #### `collector.conf`
 
-This file can be the same as the one used for `recollect`.  Only the top section
-is required.
+This file shouldn't be the same as the one used for `recollect`.  Only the top section
+is required.  Instead of using port numbers, it uses service request
+priorities, which may map to services of interest.
+
+```
+1=10
+2=25
+3=50
+4=75
+5=99
+```
 
 #### Sample URI
 
