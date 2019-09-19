@@ -358,8 +358,8 @@ follows.
 #!/bin/sh
 
 cd /home/project/mwmg
-recollect -c recollect.conf | mwmg -n 10
-svcreqollect -c svcreqollect.conf | mwmg -n 4 -g
+recollect -c recollect.conf | mwmg -n 10 &
+svcreqollect -c svcreqollect.conf | mwmg -n 4 -g &
 ```
 
 ### Explanation
