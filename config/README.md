@@ -248,6 +248,10 @@ working directory.
 The interval between samples can be specified with `-t` (the default is 15
 seconds).
 
+`svcreqollect` uses `libcurl`, so it uses the same environment variables for
+setting proxies.  See `libcurl-env(3)` for details, but `http_proxy` is
+probably the most useful one.
+
 ### Example Configuration Files
 
 #### `collector.conf`

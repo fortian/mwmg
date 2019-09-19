@@ -34,7 +34,7 @@ dependencies.
 
 # Syntax
 
-Usage: `svcreqollect [-c config] [-x]`
+Usage: `svcreqollect [-c config] [-j node-info-json] [-t interval] [-u uri] [-x]`
 
 `svcreqollect` operates as the start of a UNIX pipeline, and connects to a
 REST API defined at compile time.  It uses a configuration file specified by
@@ -42,6 +42,23 @@ REST API defined at compile time.  It uses a configuration file specified by
 identify types of service requests (via destination port number), and a
 specific JSON-formatted configuration file (specified at compile time) to
 identify hosts of interest.
+
+`-j` specifies a JSON file identifying hosts; at minimum, it needs to
+include the following object:
+
+```json
+{
+  "HOSTNAME": {
+    "address": "IPADDRESS"
+  }
+}
+```
+
+where `HOSTNAME` contains the literal string "Host" and is repeated for each
+hosts of interest, and `IPADDRESS` is the data-plane IP of that host.
+
+`-t` specifies the number of seconds to wait between measurements, and defaults
+to 15.
 
 `-x` is a debugging flag and is used to generate data based upon
 pre-configured JSON files.
@@ -63,3 +80,9 @@ and to ports 2020 and 2021.
 ## Hosts of Interest
 
 Each entry in the JSON file (typically `node_info.json` in a well-known directory) that contains the (case-sensitive) characters "Host" in the name will be included as a host of interest to `svcreqollect`.
+
+## Notes
+
+`svcreqollect` uses `libcurl`, so it uses the same environment variables for
+setting proxies.  See `libcurl-env(3)` for details, but `http_proxy` is
+probably the most useful one.
