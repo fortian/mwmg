@@ -267,8 +267,8 @@ includes:
 
 ```json
 {
-  'HOSTNAME': {
-    'address': 'IPADDRESS'
+  "HOSTNAME": {
+    "address": "IPADDRESS"
   }
 }
 ```
