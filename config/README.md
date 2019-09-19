@@ -358,14 +358,15 @@ follows.
 #!/bin/sh
 
 cd /home/project/mwmg
-recollect | mwmg -n 10
-svcreqollect | mwmg -n 4 -g
+recollect -c recollect.conf | mwmg -n 10
+svcreqollect -c svcreqollect.conf | mwmg -n 4 -g
 ```
 
 ### Explanation
 
-The configuration files (`collector.conf`, `node_info.json`, and `mwmg.conf`)
-are stored in `/home/proect/mwmg`.  There are 10 interfaces of interest (two
-each on the single-homed gateways and three each on the dual-homed gateways),
-and 4 hosts generating services of interest.  `svcreqollect` provides
-instantaneous measurements, so it needs `-g`.
+The configuration files (`recollect.conf`, `svcreqollect.conf`,
+`node_info.json`, and `mwmg.conf`) are stored in `/home/proect/mwmg`.  There
+are 10 interfaces of interest (two each on the single-homed gateways and
+three each on the dual-homed gateways), and 4 hosts generating services of
+interest.  `svcreqollect` provides instantaneous measurements, so it needs
+`-g`.
