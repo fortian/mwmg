@@ -1389,14 +1389,12 @@ int main(int argc, char *argv[]) {
         puts(               "     [-n NSYS] [-t TITLE]     [-u UNITS] [-w WINSPEC]");
         puts("    CONFIG is the fully qualified filename of the MWMG configuration file");
         puts("        (default: " CONFFILE " in the current working directory)");
-        puts("    RUNDIR is an existing directory in which to store output files");
-        puts("        (currently ignored)");
+        puts("    RUNDIR is an existing directory to change into before continuing processing");
         puts("    -g enables \"gauge\" mode: data points are absolutes instead of deltas");
         puts("    INTERVAL is the number of seconds between sweeps");
         puts("    NSYS is the number of systems to be graphed, and must be positive");
         puts("        (default: " S(DEFNSYS) ")");
-        puts("    TITLE is a name to include in the name of all windows, such "
-            "as \"Network\"");
+        puts("    TITLE is a name to include in the name of all windows, such as \"Network\"");
         puts("    UNITS is one of: 'bits' 'reqs' 'requests' (default: bits)");
         return 1;
     }
