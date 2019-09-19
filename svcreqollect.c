@@ -248,7 +248,9 @@ int main(int argc, char *argv[]) {
     struct tm *t;
     unsigned long acct, rejt, aa, rr;
     FILE *f = NULL;
+    char *uri = SVC_REQ_URI;
     char *cfg = CONFFILE;
+    char *nif = NODE_INFO;
     CURL *rest = NULL;
     int rv = 0;
     unsigned int live = 1;
@@ -256,18 +258,38 @@ int main(int argc, char *argv[]) {
     char *fn[2] = { "servicerequests-1.json", "servicerequests-2.json" };
     char buf[LINELEN];
 
-    fputs("Service Request Collector 1.0\nFortian Inc.\nwww.fortian.com\n\n", stderr);
+    fputs("Service Request Collector 1.0\nFortian Inc.\nwww.fortian.com\n\n",
+        stderr);
 
     for (i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             if (argv[i][1] == 'c') {
                 if (argv[i][2]) {
                     cfg = &argv[i][2];
-                } else if (++i > argc) {
+                } else if (argc > ++i) {
                     cfg = argv[i];
                 } else {
-                    fputs("You must specify a configuration file when using -c.\n",
-                        stderr);
+                    fprintf(stderr, "%s: -c requires a configuration file\n",
+                        argv[0]);
+                    badflag = __LINE__;
+                }
+            } else if (argv[i][1] == 'j') {
+                if (argv[i][2]) {
+                    nif = &argv[i][2];
+                } else if (argc > ++i) {
+                    nif = argv[i];
+                } else {
+                    fprintf(stderr, "%s: -j requires a configuration file\n",
+                        argv[0]);
+                    badflag = __LINE__;
+                }
+            } else if (argv[i][1] == 'u') {
+                if (argv[i][2]) {
+                    uri = &argv[i][2];
+                } else if (argc > ++i) {
+                    uri = argv[i];
+                } else {
+                    fprintf(stderr, "%s: -u requires a URI\n", argv[0]);
                     badflag = __LINE__;
                 }
             } else if (argv[i][1] == 'x') {
@@ -280,7 +302,9 @@ int main(int argc, char *argv[]) {
         }
     }
     if (badflag) {
-        fprintf(stderr, "Usage: %s [-c config] [-x]\n", argv[0]);
+        fprintf(stderr,
+            "Usage: %s [-c config] [-j node-info-json] [-u uri] [-x]\n",
+            argv[0]);
         return 1;
     }
 
@@ -303,7 +327,7 @@ int main(int argc, char *argv[]) {
     fclose(f);
     fputs("1st configuration file loaded...\n", stderr);
 
-    json = json_object_from_file(NODE_INFO);
+    json = json_object_from_file(nif);
     rv = (int)(long)json;
     if (rv < 0) {
         json = NULL;
@@ -328,6 +352,10 @@ int main(int argc, char *argv[]) {
     /* dump_prio_map(); */
 
     for (i = 0; i < nprio; i++) {
+        /* clang insists that nhosts is always null, and I'm sure it's wrong
+        because it gets modified in add_ip_to_host.  The challenge here is
+        that excessive optimization might agree with clang and optimize this
+        out, causing a segfault. */
         priorities[i].accepted = malloc(nhosts * sizeof (unsigned long));
         priorities[i].rejected = malloc(nhosts * sizeof (unsigned long));
     }
@@ -343,7 +371,7 @@ int main(int argc, char *argv[]) {
 
     if (live) {
         /* curl_easy_setopt(rest, CURLOPT_VERBOSE, 1L); */
-        curl_easy_setopt(rest, CURLOPT_URL, SVC_REQ_URI);
+        curl_easy_setopt(rest, CURLOPT_URL, uri);
         curl_easy_setopt(rest, CURLOPT_WRITEFUNCTION, curldata);
         curl_easy_setopt(rest, CURLOPT_WRITEDATA, &jsontext);
     }
