@@ -47,8 +47,6 @@ size_t nprio;
 char *jsontext = NULL;
 size_t jsonlen = 0;
 
-const int interval = 15; /* XXX make me configurable */
-
 #define SVC_REQ_URI "http://127.0.0.1:8618/stats/net/servicerequests"
 /* #define PRIORITY_REQ_URI "http://172.16.0.30/stats/conf/priority_table" */
 
@@ -256,6 +254,7 @@ int main(int argc, char *argv[]) {
     unsigned int live = 1;
     unsigned int badflag = 0;
     char *fn[2] = { "servicerequests-1.json", "servicerequests-2.json" };
+    int interval = 15;
     char buf[LINELEN];
 
     fputs("Service Request Collector 1.0\nFortian Inc.\nwww.fortian.com\n\n",
@@ -283,6 +282,21 @@ int main(int argc, char *argv[]) {
                         argv[0]);
                     badflag = __LINE__;
                 }
+            } else if (argv[i][1] == 't') {
+                if (argv[i][2]) {
+                    interval = atoi(&argv[i][2]);
+                } else if (argc > ++i) {
+                    interval = atoi(argv[i]);
+                } else {
+                    badflag = __LINE__;
+                }
+                if (interval < 1) {
+                    badflag = __LINE__;
+                }
+                if (badflag) {
+                    fprintf(stderr, "%s: -t requires a positive integer\n",
+                        argv[0]);
+                }
             } else if (argv[i][1] == 'u') {
                 if (argv[i][2]) {
                     uri = &argv[i][2];
@@ -303,7 +317,7 @@ int main(int argc, char *argv[]) {
     }
     if (badflag) {
         fprintf(stderr,
-            "Usage: %s [-c config] [-j node-info-json] [-u uri] [-x]\n",
+            "Usage: %s [-c config] [-j node-info-json] [-t interval] [-u uri] [-x]\n",
             argv[0]);
         return 1;
     }
