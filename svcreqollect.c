@@ -241,21 +241,22 @@ const char *json_get_string(json_object *j, const char *k) {
 int main(int argc, char *argv[]) {
     unsigned long senders;
     array_list *arr, *paths;
-    json_object *json, *h;
+    json_object *h;
     int i, j, len;
     struct tm *t;
     unsigned long acct, rejt, aa, rr;
+    char buf[LINELEN];
     FILE *f = NULL;
     char *uri = SVC_REQ_URI;
     char *cfg = CONFFILE;
     char *nif = NODE_INFO;
     CURL *rest = NULL;
+    json_object *json = NULL;
     int rv = 0;
+    int interval = 15;
     unsigned int live = 1;
     unsigned int badflag = 0;
     char *fn[2] = { "servicerequests-1.json", "servicerequests-2.json" };
-    int interval = 15;
-    char buf[LINELEN];
 
     fputs("Service Request Collector 1.0\nFortian Inc.\nwww.fortian.com\n\n",
         stderr);
@@ -319,7 +320,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr,
             "Usage: %s [-c config] [-j node-info-json] [-t interval] [-u uri] [-x]\n",
             argv[0]);
-        return 1;
+        rv = 1;
+        goto abend;
     }
 
     priorities = calloc(1, sizeof (struct portmap));
@@ -327,9 +329,10 @@ int main(int argc, char *argv[]) {
 
     f = fopen(cfg, "r");
     if (f == NULL) {
-        fprintf(stderr, "Could not open configuration file %s: %s\n", cfg,
-            strerror(errno));
-        return 3;
+        rv = errno;
+        fprintf(stderr, "%s: Couldn't open configuration file %s: %s\n",
+            argv[0], cfg, strerror(errno));
+        goto abend;
     }
     while (fgets(buf, LINELEN, f) != NULL) {
         buf[LINELEN - 1] = 0;
@@ -339,13 +342,12 @@ int main(int argc, char *argv[]) {
         }
     }
     fclose(f);
-    fputs("1st configuration file loaded...\n", stderr);
+    fprintf(stderr, "%s: 1st configuration file loaded...\n", argv[0]);
 
     json = json_object_from_file(nif);
-    rv = (int)(long)json;
-    if (rv < 0) {
+    if (json < 0) {
         json = NULL;
-        rv = -rv;
+        rv = EINVAL;
         goto abend;
     }
 
@@ -361,15 +363,17 @@ int main(int argc, char *argv[]) {
         }
     }
     json_object_put(json);
-    fputs("2nd configuration file loaded...\n", stderr);
+    fprintf(stderr, "%s: 2nd configuration file loaded...\n", argv[0]);
+
+    if (!nhosts) { /* Something was wrong with the config file! */
+        fprintf(stderr, "%s: no hosts found in %s!\n", argv[0], nif);
+        rv = EINVAL;
+        goto abend;
+    }
 
     /* dump_prio_map(); */
 
     for (i = 0; i < nprio; i++) {
-        /* clang insists that nhosts is always null, and I'm sure it's wrong
-        because it gets modified in add_ip_to_host.  The challenge here is
-        that excessive optimization might agree with clang and optimize this
-        out, causing a segfault. */
         priorities[i].accepted = malloc(nhosts * sizeof (unsigned long));
         priorities[i].rejected = malloc(nhosts * sizeof (unsigned long));
     }
@@ -608,7 +612,9 @@ abend:
     if (json != NULL) {
         json_object_put(json);
     }
-    curl_easy_cleanup(rest);
-    curl_global_cleanup();
+    if (rest != NULL) {
+        curl_easy_cleanup(rest);
+        curl_global_cleanup();
+    }
     return rv;
 }
