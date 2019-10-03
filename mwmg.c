@@ -123,6 +123,10 @@ static void update_multi_top(int which, int draww, int drawh, double xscal);
 static void update_multi_bottom(int which, int draww, int drawh);
 static GtkWindow *create_win(int which, const char *tag);
 
+static inline int min(int a, int b) {
+    return (a < b) ? a : b;
+}
+
 // ignores args; they're from a version that tried to mmap them
 static void *falloc(int id, unsigned long curtime) {
     void *rv = NULL;
@@ -139,17 +143,19 @@ static void *falloc(int id, unsigned long curtime) {
 static void blank(int which, int winno) {
     GdkPixmap *px;
     struct win *win;
-    int y, end, incr;
-    unsigned char i;
     double xscal;
     double x;
-    gint h;
     int w[2], hh[2];
+    unsigned int y, end, incr, i;
+    gint h;
     char t[6];
 
     end = M_LEFT;
     win = &wins[which];
     incr = TSINTER / (gauge ? 1 : interval) / win->sperpx;
+    if (incr < 1) {
+        incr = 1;
+    }
 
     /* Don't draw a title, as the window is now titled. */
     gdk_draw_rectangle(win->dbs[winno], BLACK_GC(win->das[winno]), FALSE,
@@ -209,10 +215,10 @@ static void blank(int which, int winno) {
             }
         }
     } else {
-        for (i = incr; i < DEFTLEN / win->sperpx; i += 3 * incr) {
+        for (i = incr; i < min(DEFTLEN / win->sperpx, DEFTLEN); i += 3 * incr) {
             gdk_draw_line(win->dbs[1], win->gc, M_LEFT + i, M_TOP + 1,
                 M_LEFT + i, ALLOC_HEIGHT(win->das[1]) - M_BOT - 1);
-            strftime(t, 6, "%R", &whens[i / incr - 1]);
+            strftime(t, 6, "%R", &whens[i / incr]);
             if (M_LEFT + i - gdk_string_width(font, t) / 2 >= end) {
                 gdk_draw_rectangle(win->dbs[1], WHITE_GC(win->das[1]), TRUE,
                     M_LEFT + i - gdk_string_width(font, t) / 2,
@@ -1174,9 +1180,9 @@ static void readin(gpointer data, gint source, GdkInputCondition condition) {
         *gta = gtk_timeout_add(interval * 1000, update, NULL);
 
         start = time(NULL);
-        for (i = start /* + TSINTER */; i < start + DEFTLEN; i += TSINTER) {
+        for (i = start; i < start + DEFTLEN; i += TSINTER) {
             inter = i;
-            localtime_r(&inter, &whens[(i - start) / TSINTER - 1]);
+            localtime_r(&inter, &whens[(i - start) / TSINTER]);
         }
         done++;
     }
@@ -1575,10 +1581,10 @@ int main(int argc, char *argv[]) {
 #endif
 
     start = time(NULL);
-    whens = calloc(DEFTLEN / TSINTER, sizeof (struct tm));
-    for (i = start + TSINTER; i < start + DEFTLEN; i += TSINTER) {
+    whens = calloc(DEFTLEN / TSINTER + 1, sizeof (struct tm));
+    for (i = start; i < start + DEFTLEN; i += TSINTER) {
         inter = i;
-        localtime_r(&inter, &whens[(i - start) / TSINTER - 1]);
+        localtime_r(&inter, &whens[(i - start) / TSINTER]);
     }
 
     mainwin = create_selector(tag);
