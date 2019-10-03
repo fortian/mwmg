@@ -8,8 +8,8 @@ CC=gcc
 
 # Define one of DEBUG or NDEBUG but not both
 # Note that builds without DEBUG have not been tested recently.
-#DEBUG-O2 -ggdb -Wunused -Werror -Wall -Wno-deprecated \ -Wno-error=deprecated-declarations -DDEBUG -UNDEBUG
-DEBUG=-O2 -ggdb -Wunused -Wall -Wno-deprecated \ -Wno-error=deprecated-declarations -DDEBUG -UNDEBUG
+#DEBUG-O2 -ggdb -Wunused -Werror -Wall -Wno-deprecated -Wno-error=deprecated-declarations -DDEBUG -UNDEBUG
+DEBUG=-O2 -ggdb -Wunused -Wall -Wno-deprecated -Wno-error=deprecated-declarations -DDEBUG -UNDEBUG
 #NDEBUG=-O9 -g -DGTK_NO_CHECK_CASTS -DNDEBUG -UDEBUG
 
 # It's the 21st century, everyone should have GCC 4 or higher.
