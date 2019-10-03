@@ -50,7 +50,7 @@ VERSION=3.1.0
 
 .PHONY: all clean deb tar
 
-all: mwmg recollect pcapper svcreqollect
+all: mwmg recollect pcapper svcreqollect delay
 
 clean:
 	rm -f recollect mwmg pcapper svcreqollect tags *.o
