@@ -61,12 +61,12 @@ void *acceptor(void *sockp) {
         FD_SET(sock, &xfs);
         i = select(sock + 1, &rfs, NULL, &xfs, NULL);
         if ((i < 0) && (errno != EINTR)) {
-            perror("select");
+            perror("pcapper: select");
         } else if (i > 0) {
             if (FD_ISSET(sock, &xfs)) {
-                perror("select");
+                perror("pcapper: select exception");
             } else if ((conn = accept(sock, NULL, NULL)) < 0) {
-                perror("accept");
+                perror("pcapper: accept");
             } else {
                 pthread_mutex_lock(&biglock);
                 FD_SET(conn, &bigfs);
@@ -76,7 +76,6 @@ void *acceptor(void *sockp) {
     }
     return NULL;
 }
-
 
 void dumppacket(const unsigned char *pkt, size_t len) {
     size_t i, j;
@@ -264,7 +263,7 @@ void logpkt(struct wire *otw
 
     f = fopen(logfn, "a");
     if (f == NULL) {
-        fprintf(stderr, "Could not log data to %s: %s\n",
+        fprintf(stderr, "pcapper: couldn't log data to %s: %s\n",
             logfn, strerror(errno));
     } else {
         ina.s_addr = otw->saddr;
@@ -393,14 +392,14 @@ void blastpacket(fd_set *f, const u_char *pkt, struct pcap_pkthdr *head) {
             /* don't report relays yet */
             for (i = 0; i < FD_SETSIZE; i++) if (FD_ISSET(i, f)) {
                 if (send(i, &otw, sizeof (otw), MSG_NOSIGNAL) < 0) {
-                    perror("send error");
+                    perror("pcapper: send@1");
                     FD_CLR(i, f);
                     shutdown(i, SHUT_RDWR);
                     close(i);
 #ifdef ENCAPS
                 } else if (encap.encapped &&
                     (send(i, &encap, sizeof (encap), MSG_NOSIGNAL) < 0)) {
-                    perror("send encapped error");
+                    perror("pcapper: send@1 encapped");
                     FD_CLR(i, f);
                     shutdown(i, SHUT_RDWR);
                     close(i);
@@ -425,7 +424,7 @@ uint64_t readmem(void) {
 
     f = fopen("/proc/meminfo", "r");
     if (f == NULL) {
-        perror("fopen");
+        perror("pcapper: fopen");
     } else do {
         fgets(buf, BUFSIZ, f);
         buf[BUFSIZ - 1] = 0;
@@ -470,7 +469,7 @@ int readstat(uint64_t *d) {
 
     f = fopen("/proc/stat", "r");
     if (f == NULL) {
-        perror("fopen");
+        perror("pcapper: fopen");
         return -1;
     }
 
@@ -533,11 +532,11 @@ void *watchstat(void *arg) {
     uint16_t h;
 
     if (gettimeofday(&tv, NULL) < 0) {
-        perror("gettimeofday");
+        perror("pcapper: gettimeofday");
     }
     ncpu = readstat(orig);
     if (ncpu < 1) {
-        perror("readstat");
+        perror("pcapper: readstat");
         return (void *)1;
     }
     orig[S_TOT] = 0;
@@ -548,19 +547,19 @@ void *watchstat(void *arg) {
     }
     for (;;) {
         if (gettimeofday(&tv2, NULL) < 0) {
-            perror("gettimeofday");
+            perror("pcapper: gettimeofday");
         }
         timediff = 1000000 - tvdiff(&tv, &tv2);
         if (timediff > 0) {
             usleep(timediff);
         }
         if (gettimeofday(&tv, NULL) < 0) {
-            perror("gettimeofday");
+            perror("pcapper: gettimeofday");
         }
 
         ncpu = readstat(data);
         if (ncpu < 1) {
-            perror("readstat failed, using result anyway");
+            perror("pcapper: readstat failed, using result anyway");
             ncpu = 1; /* Not a lot we can do here. */
         }
         data[S_TOT] = 0;
@@ -598,7 +597,7 @@ void *watchstat(void *arg) {
         pthread_mutex_lock(&biglock);
         for (i = 0; i < FD_SETSIZE; i++) if (FD_ISSET(i, f)) {
             if (send(i, &otw, sizeof (otw), MSG_NOSIGNAL) < 0) {
-                perror("send error");
+                perror("pcapper: send@2");
                 FD_CLR(i, f);
                 shutdown(i, SHUT_RDWR);
                 close(i);
@@ -620,7 +619,7 @@ void *watchstat(void *arg) {
         pthread_mutex_lock(&biglock);
         for (i = 0; i < FD_SETSIZE; i++) if (FD_ISSET(i, f)) {
             if (send(i, &otw, sizeof (otw), MSG_NOSIGNAL) < 0) {
-                perror("send error");
+                perror("pcapper: send@3");
                 FD_CLR(i, f);
                 shutdown(i, SHUT_RDWR);
                 close(i);
@@ -721,7 +720,7 @@ int main(int argc, char *argv[]) {
     }
 
     if ((i = manhandle(mac, NULL, &lan.sin_addr, NULL, listendev, NULL))) {
-        fprintf(stderr, "Could not get IP and MAC address for %s: %s\n",
+        fprintf(stderr, "pcapper: couldn't get IP and MAC address for %s: %s\n",
             listendev, strerror(i));
         return 16;
     }
@@ -750,20 +749,20 @@ int main(int argc, char *argv[]) {
     }
 
     if (pcap_compile(pch, &filter, filterstr, 1, mask) < 0) {
-        printf("Could not compile filter `%s': %s\n", filterstr,
+        printf("pcapper: couldn't compile filter `%s': %s\n", filterstr,
             pcap_geterr(pch));
         pcap_close(pch);
         return 6;
     }
     if (pcap_setfilter(pch, &filter) < 0) {
-        printf("Could not apply filter: %s\n", pcap_geterr(pch));
+        printf("pcapper: couldn't apply filter: %s\n", pcap_geterr(pch));
         pcap_close(pch);
         return 7;
     }
 
 #if 0
     if ((i = getip(&sin.sin_addr, serverdev, NULL))) {
-        fprintf(stderr, "Could not get IP address for %s: %s\n",
+        fprintf(stderr, "pcapper: couldn't get IP address for %s: %s\n",
             serverdev, strerror(i));
         pcap_close(pch);
         return 17;
@@ -772,45 +771,45 @@ int main(int argc, char *argv[]) {
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
-        perror("socket");
+        perror("pcapper: socket");
         pcap_close(pch);
         return 1;
     }
     if (setsockopt(sock, SOL_SOCKET, SO_LINGER, (char *)&l,
         sizeof (struct linger)) < 0) {
-        perror("setsockopt linger");
+        perror("pcapper: setsockopt linger");
     }
     if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (char *)&one,
         sizeof (int)) < 0) {
-        perror("setsockopt keepalive");
+        perror("pcapper: setsockopt keepalive");
     }
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&one,
         sizeof (int)) < 0) {
-        perror("setsockopt reuseaddr");
+        perror("pcapper: setsockopt reuseaddr");
     }
 #ifdef SO_REUSEPORT
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (char *)&one,
         sizeof (int)) < 0) {
-        perror("setsockopt reuseport");
+        perror("pcapper: setsockopt reuseport");
     }
 #endif
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = INADDR_ANY;
     sin.sin_port = htons(port);
     if (bind(sock, (struct sockaddr *)&sin, sizeof (struct sockaddr_in)) < 0) {
-        perror("bind");
+        perror("pcapper: bind");
         close(sock);
         pcap_close(pch);
         return 2;
     } else if (listen(sock, 5) < 0) {
-        perror("listen");
+        perror("pcapper: listen");
         close(sock);
         pcap_close(pch);
         return 3;
     }
 
     if (pthread_create(&ptaccess, NULL, acceptor, (void *)(long)sock) < 0) {
-        perror("pthread_create");
+        perror("pcapper: pthread_create");
         close(sock);
         pcap_close(pch);
         return 8;
@@ -820,7 +819,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef SHOW_STATISTICS
     if (pthread_create(&ptcpu, NULL, watchstat, (void *)&bigfs) < 0) {
-        perror("pthread_create CPU");
+        perror("pcapper: pthread_create CPU");
         goto abend;
     } else {
         pthread_detach(ptcpu);
