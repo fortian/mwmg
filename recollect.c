@@ -80,12 +80,12 @@ static void addconn(char *s) {
         if (fh != NULL) {
             flows = fh;
             if ((fh[nflows].id = atoi(s)) == 0) {
-                fprintf(stderr, "Warning: could not parse ID on line %d.\n",
+                fprintf(stderr, "recollect: couldn't parse ID on line %d.\n",
                     ln);
                 /* The next realloc will get the same handle, or we'll leak one
                    flow's worth of memory.  C'est la guerre. */
             } else if ((fh[nflows].mgenid[0] = atol(idx)) == 0) {
-                fprintf(stderr, "Warning: could not parse start on line %d.\n",
+                fprintf(stderr, "recollect: couldn't parse start on line %d.\n",
                     ln);
             } else { /* We have the start of a good line here. */
                 if ((hyp = strchr(idx, '-')) == NULL) {
@@ -93,7 +93,7 @@ static void addconn(char *s) {
                 } else {
                     if ((fh[nflows].mgenid[1] = atol(++hyp)) == 0) {
                         fprintf(stderr,
-                            "Warning: could not parse end on line %d.\n", ln);
+                            "recollect: couldn't parse end on line %d.\n", ln);
                         fh[nflows].mgenid[0] = 0;
                     }
                 }
@@ -110,7 +110,7 @@ static void addconn(char *s) {
             }
         } else {
             fprintf(stderr,
-                "Warning: Could not reallocate flow groups on line %d: %s\n",
+                "recollect: couldn't reallocate flow groups on line %d: %s\n",
                 ln, strerror(errno));
         }
     } else if (((id = strtok(s, ":")) != NULL) &&
@@ -138,7 +138,7 @@ static void addconn(char *s) {
 
         h = realloc(sys, (nsys + 1) * sizeof (struct ssys));
         if (h == NULL) {
-            perror("Could not reallocate serverlist buffer");
+            perror("recollect: couldn't reallocate serverlist buffer");
             close(sock);
         } else {
             if (sock > lastsock) {
@@ -154,7 +154,7 @@ static void addconn(char *s) {
             nsys++;
         }
     } else if (sock < 0) {
-        perror("Could not create socket");
+        perror("recollect: couldn't create socket");
     } else {
         fprintf(stderr, "Line %d of configuration file is incorrect: `%s'\n",
             ln, s);
@@ -226,7 +226,7 @@ int clobber(int i) {
     FD_CLR(sys[i].sock, &bigfs);
     pthread_mutex_unlock(&connlock);
     if ((sys[i].sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        fprintf(stderr, "Could not create socket for %s: %s\n",
+        fprintf(stderr, "recollect: couldn't create socket for %s: %s\n",
             sys[i].s, strerror(errno));
         return 1;
     }
@@ -359,7 +359,7 @@ int main(int argc, char *argv[]) {
 
     f = fopen(cfg, "r");
     if (f == NULL) {
-        fprintf(stderr, "Could not open configuration file %s: %s\n", cfg,
+        fprintf(stderr, "recollect: couldn't open configuration file %s: %s\n", cfg,
             strerror(errno));
         return 3;
     }
@@ -369,10 +369,10 @@ int main(int argc, char *argv[]) {
         if (feof(f)) break;
     }
     fclose(f);
-    fputs("Configuration file loaded, beginning processing...\n", stderr);
+    fputs("recollect: configuration file loaded, beginning processing...\n", stderr);
 
     if (pthread_create(&ptconn, NULL, conner, NULL) < 0) {
-        perror("Could not create connections thread");
+        perror("recollect: couldn't create connections thread");
         return errno;
     }
     pthread_detach(ptconn);
