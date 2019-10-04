@@ -24,6 +24,7 @@ See the file LICENSE which should have accompanied this software. */
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <time.h>
 #include "ftfm.h"
 
 #define LINELEN 32
@@ -161,25 +162,30 @@ static void addconn(char *s) {
     }
 }
 
-void *conner(void *junk) {
+void *conner(void *vname) {
     int i;
     fd_set fs;
+    char *prog;
+    struct timespec ts;
+    int alreadyfailed = 0;
 
+    prog = (char *)vname;
     pthread_mutex_lock(&connlock);
 
     /* try once with the big fd_set locked, then fall back to the background */
     for (i = 0; i < nsys; i++) {
         if (FD_ISSET(i, &needconn)) {
-            fprintf(stderr, " Connecting to: %s  \r", sys[i].s);
+            fprintf(stderr, "%s: connecting to %s ...", prog, sys[i].s);
             fflush(stderr);
             if (connect(sys[i].sock, (struct sockaddr *)&sys[i].sin,
                 sizeof (struct sockaddr_in)) < 0) {
-                fprintf(stderr, "Error connecting to %s:%u for system %s: %s\n",
+                fprintf(stderr,
+                    "\r\033[2KError connecting to %s:%u for system %s: %s\n",
                     inet_ntoa((struct in_addr)sys[i].sin.sin_addr),
                     ntohs(sys[i].sin.sin_port), sys[i].s,
                     strerror(errno));
             } else {
-                fputs("                    \r", stderr);
+                fputs("\r\033[2K", stderr);
                 fflush(stderr);
                 FD_SET(sys[i].sock, &bigfs);
                 FD_CLR(i, &needconn);
@@ -193,17 +199,15 @@ void *conner(void *junk) {
 
         for (i = 0; i < nsys; i++) {
             if (FD_ISSET(i, &fs)) {
-                fprintf(stderr, " Connecting to: %s  \r", sys[i].s);
+                fprintf(stderr, "\r%s: connecting to %s ...", prog, sys[i].s);
                 fflush(stderr);
                 if (connect(sys[i].sock, (struct sockaddr *)&sys[i].sin,
                     sizeof (struct sockaddr_in)) < 0) {
-                    fprintf(stderr, "Error connecting to %s:%u for "
-			"system %s: %s\n",
-			inet_ntoa((struct in_addr)sys[i].sin.sin_addr),
-                        ntohs(sys[i].sin.sin_port), sys[i].s,
-			strerror(errno));
+                    fprintf(stderr, "\r\033[2K%s: error connecting to %s:%u for system %s: %s\n",
+                        prog, inet_ntoa((struct in_addr)sys[i].sin.sin_addr),
+                        ntohs(sys[i].sin.sin_port), sys[i].s, strerror(errno));
                 } else {
-                    fputs("                    \r", stderr);
+                    fputs("\r\033[2K", stderr);
                     fflush(stderr);
                     pthread_mutex_lock(&connlock);
                     FD_SET(sys[i].sock, &bigfs);
@@ -213,7 +217,17 @@ void *conner(void *junk) {
             }
         }
         pthread_mutex_lock(&connlock);
-        pthread_cond_wait(&waitconn, &connlock);
+        if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0) {
+            if (!alreadyfailed) {
+                fprintf(stderr, "%s: clock_gettime: %s\n",
+                    prog, strerror(errno));
+                alreadyfailed++;
+            }
+            pthread_cond_wait(&waitconn, &connlock);
+        } else {
+            ts.tv_sec += 10;
+            pthread_cond_timedwait(&waitconn, &connlock, &ts);
+        }
     }
     pthread_mutex_unlock(&connlock);
     return NULL;
@@ -371,7 +385,7 @@ int main(int argc, char *argv[]) {
     fclose(f);
     fputs("recollect: configuration file loaded, beginning processing...\n", stderr);
 
-    if (pthread_create(&ptconn, NULL, conner, NULL) < 0) {
+    if (pthread_create(&ptconn, NULL, conner, argv[0]) < 0) {
         perror("recollect: couldn't create connections thread");
         return errno;
     }
@@ -396,7 +410,7 @@ int main(int argc, char *argv[]) {
                     }
                 } else if (FD_ISSET(sys[i].sock, &rfs) && consume(i)) {
                     fprintf(stderr, "Closing errored socket for %s.\n",
-			sys[i].s);
+                        sys[i].s);
                     if (!clobber(i)) {
                         shouldsig++;
                     }
