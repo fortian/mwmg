@@ -157,9 +157,11 @@ static void addconn(char *s) {
     } else if (sock < 0) {
         perror("recollect: couldn't create socket");
     } else {
-        fprintf(stderr, "Line %d of configuration file is incorrect: `%s'\n",
+        fprintf(stderr,
+            "recollect: line %d of configuration file is incorrect: `%s'\n",
             ln, s);
     }
+    fflush(stderr);
 }
 
 void *conner(void *vname) {
@@ -167,6 +169,7 @@ void *conner(void *vname) {
     fd_set fs;
     char *prog;
     struct timespec ts;
+    int waiting;
     int alreadyfailed = 0;
 
     prog = (char *)vname;
@@ -199,7 +202,7 @@ void *conner(void *vname) {
     }
 #endif
 
-    for (;;) {
+    for (waiting = 0;;) {
         memcpy(&fs, &needconn, sizeof (fd_set));
         pthread_mutex_unlock(&connlock);
 
@@ -212,6 +215,7 @@ void *conner(void *vname) {
                     fprintf(stderr, "\r\033[2K%s: error connecting to %s:%u as system %s: %s\n",
                         prog, inet_ntoa((struct in_addr)sys[i].sin.sin_addr),
                         ntohs(sys[i].sin.sin_port), sys[i].s, strerror(errno));
+                    waiting++;
                 } else {
                     fprintf(stderr, "\r\033[2K%s: Connected to %s:%u (%s)\n",
                         prog, inet_ntoa((struct in_addr)sys[i].sin.sin_addr),
@@ -224,19 +228,20 @@ void *conner(void *vname) {
                 }
             }
         }
-        fprintf(stderr, "%s: waiting 10 seconds before looping again...\n",
-            prog);
         pthread_mutex_lock(&connlock);
         if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0) {
             if (!alreadyfailed) {
                 fprintf(stderr, "%s: clock_gettime: %s\n",
                     prog, strerror(errno));
+                fflush(stderr);
                 alreadyfailed++;
             }
             pthread_cond_wait(&waitconn, &connlock);
-        } else {
+        } else if (waiting) {
             ts.tv_sec += 10;
             pthread_cond_timedwait(&waitconn, &connlock, &ts);
+        } else {
+            pthread_cond_wait(&waitconn, &connlock);
         }
     }
     pthread_mutex_unlock(&connlock);
@@ -250,8 +255,10 @@ int clobber(int i) {
     FD_CLR(sys[i].sock, &bigfs);
     pthread_mutex_unlock(&connlock);
     if ((sys[i].sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        fprintf(stderr, "recollect: couldn't create socket for %s (dropping): %s\n",
+        fprintf(stderr,
+            "recollect: couldn't create socket for %s (dropping): %s\n",
             sys[i].s, strerror(errno));
+        fflush(stderr);
         return 1;
     }
     if (sys[i].sock > lastsock) {
@@ -293,8 +300,9 @@ int consume(int i) { /* Format change on 2015 08 07 */
 
     if (recv(sys[i].sock, &otw, sizeof (struct wire), 0) <
         sizeof (struct wire)) {
-        fprintf(stderr, "Error reading from %s: %s\n", sys[i].s,
+        fprintf(stderr, "recollect: error reading from %s: %s\n", sys[i].s,
             strerror(errno));
+        fflush(stderr);
         return -1;
 #ifdef SHOW_STATISTICS
     } else if ((ntohs(otw.dport) == 1) && (ntohs(otw.sport) == 1) &&
@@ -342,7 +350,9 @@ int consume(int i) { /* Format change on 2015 08 07 */
 #if 1
     if (last != otw.sec) {
         t = gmtime(&when);
-        fprintf(stderr, "\r%02d:%02d:%02d", t->tm_hour, t->tm_min, t->tm_sec);
+        fprintf(stderr, "\r\033[2K%02d:%02d:%02d",
+            t->tm_hour, t->tm_min, t->tm_sec);
+        fflush(stderr);
         last = otw.sec;
     }
 #endif
@@ -410,9 +420,8 @@ int main(int argc, char *argv[]) {
         memcpy(&xfs, &bigfs, sizeof (fd_set));
         pthread_mutex_unlock(&connlock);
 
-        tv.tv_sec = 1;
+        tv.tv_sec = 10;
         tv.tv_usec = 0;
-        fprintf(stderr, "recollect: examining up to FD %d...\n", lastsock);
         if (select(lastsock + 1, &rfs, NULL, &xfs, &tv) > 0) {
             for (i = 0; i < nsys; i++) {
                 if (FD_ISSET(sys[i].sock, &xfs)) {

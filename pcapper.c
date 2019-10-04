@@ -29,6 +29,7 @@ See the file LICENSE which should have accompanied this software. */
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <inttypes.h>
+#include <limits.h>
 #include "ftfm.h"
 #include "linuxif.h"
 
@@ -296,7 +297,7 @@ void logpkt(struct wire *otw
     }
 }
 
-void blastpacket(fd_set *f, const u_char *pkt, struct pcap_pkthdr *head) {
+void blastpacket(u_char *ff, const struct pcap_pkthdr *head, const u_char *pkt) {
     int i;
     struct wire otw = { 0 };
 #ifdef ENCAPS
@@ -307,6 +308,7 @@ void blastpacket(fd_set *f, const u_char *pkt, struct pcap_pkthdr *head) {
     struct ip_pkt *p;
     uint16_t et;
     unsigned int headlen = 0;
+    fd_set *f = (fd_set *)ff;
 
     et = ntohs(((struct packet *)pkt)->eh.ether_type);
 
@@ -636,8 +638,6 @@ void *watchstat(void *arg) {
 int main(int argc, char *argv[]) {
     pcap_t *pch;
     char errbuf[PCAP_ERRBUF_SIZE];
-    const u_char *packet;
-    struct pcap_pkthdr head;
     int i;
     int one = 1;
     struct linger l = { 0, 0 };
@@ -648,8 +648,10 @@ int main(int argc, char *argv[]) {
     pthread_t ptcpu;
 #endif
     bpf_u_int32 ip, mask;
+    int result;
     struct bpf_program filter;
-    char filterstr[64];
+    char filterstr[FILTERLEN];
+    int counter = 0;
     char listendev[IFNAMSIZ] = LISTENDEV;
 #if 0
     char serverdev[IFNAMSIZ] = SERVERDEV;
@@ -719,11 +721,18 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if ((i = manhandle(mac, NULL, &lan.sin_addr, NULL, listendev, NULL))) {
-        fprintf(stderr, "pcapper: couldn't get IP and MAC address for %s: %s\n",
-            listendev, strerror(i));
-        return 16;
-    }
+    do {
+        if ((i = manhandle(mac, NULL, &lan.sin_addr, NULL, listendev, NULL))) {
+            counter++;
+        }
+        if (counter > 60) {
+            fprintf(stderr, "%s: couldn't get IP and MAC address for %s: %s\n",
+                argv[0], listendev, strerror(i));
+            return 16;
+        } else if (i) {
+            sleep(1);
+        }
+    } while (i);
 
     if (mode == MODE_SRC) {
         sprintf(filterstr, SRCFILTER, mac);
@@ -733,37 +742,41 @@ int main(int argc, char *argv[]) {
         sprintf(filterstr, SPOFILTER,
             inet_ntoa((struct in_addr)lan.sin_addr), mac);
     } else {
-        fprintf(stderr, "ERROR: Illegal mode %02X\n", mode);
+        fprintf(stderr, "%s: illegal mode %02X\n", argv[0], mode);
         return 21;
     }
 
     if (pcap_lookupnet(listendev, &ip, &mask, errbuf) < 0) {
-        printf("Couldn't get network or mask for %s: %s\n", listendev, errbuf);
+        fprintf(stderr, "%s: couldn't get network or mask for %s: %s\n",
+            argv[0], listendev, errbuf);
         return 5;
     }
 
     pch = pcap_open_live(listendev, SNAP_LEN, PROMISC_MODE, TIMEOUT_MS, errbuf);
     if (pch == NULL) {
-        printf("Couldn't open device %s: %s\n", listendev, errbuf);
+        fprintf(stderr, "%s: couldn't open device %s: %s\n",
+            argv[0], listendev, errbuf);
         return 4;
     }
 
     if (pcap_compile(pch, &filter, filterstr, 1, mask) < 0) {
-        printf("pcapper: couldn't compile filter `%s': %s\n", filterstr,
-            pcap_geterr(pch));
+        fprintf(stderr, "%s: couldn't compile filter `%s': %s\n",
+            argv[0], filterstr, pcap_geterr(pch));
         pcap_close(pch);
         return 6;
     }
+
     if (pcap_setfilter(pch, &filter) < 0) {
-        printf("pcapper: couldn't apply filter: %s\n", pcap_geterr(pch));
+        fprintf(stderr, "%s: couldn't apply filter: %s\n",
+            argv[0], pcap_geterr(pch));
         pcap_close(pch);
         return 7;
     }
 
 #if 0
     if ((i = getip(&sin.sin_addr, serverdev, NULL))) {
-        fprintf(stderr, "pcapper: couldn't get IP address for %s: %s\n",
-            serverdev, strerror(i));
+        fprintf(stderr, "%s: couldn't get IP address for %s: %s\n",
+            argv[0], serverdev, strerror(i));
         pcap_close(pch);
         return 17;
     }
@@ -771,70 +784,79 @@ int main(int argc, char *argv[]) {
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
-        perror("pcapper: socket");
+        fprintf(stderr, "%s: socket: %s", argv[0], strerror(errno));
         pcap_close(pch);
         return 1;
     }
+
     if (setsockopt(sock, SOL_SOCKET, SO_LINGER, (char *)&l,
         sizeof (struct linger)) < 0) {
-        perror("pcapper: setsockopt linger");
+        fprintf(stderr, "%s: setsockopt linger: %s\n",
+            argv[0], strerror(errno));
     }
     if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (char *)&one,
         sizeof (int)) < 0) {
-        perror("pcapper: setsockopt keepalive");
+        fprintf(stderr, "%s: setsockopt keepalive: %s\n",
+            argv[0], strerror(errno));
     }
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&one,
         sizeof (int)) < 0) {
-        perror("pcapper: setsockopt reuseaddr");
+        fprintf(stderr, "%s: setsockopt reuseaddr: %s\n",
+            argv[0], strerror(errno));
     }
 #ifdef SO_REUSEPORT
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (char *)&one,
         sizeof (int)) < 0) {
-        perror("pcapper: setsockopt reuseport");
+        fprintf(stderr, "%s: setsockopt reuseport: %s\n",
+            argv[0], strerror(errno));
     }
 #endif
+
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = INADDR_ANY;
     sin.sin_port = htons(port);
     if (bind(sock, (struct sockaddr *)&sin, sizeof (struct sockaddr_in)) < 0) {
-        perror("pcapper: bind");
+        fprintf(stderr, "%s: bind: %s\n", argv[0], strerror(errno));
         close(sock);
         pcap_close(pch);
         return 2;
-    } else if (listen(sock, 5) < 0) {
-        perror("pcapper: listen");
+    }
+
+    if (listen(sock, 5) < 0) {
+        fprintf(stderr, "%s: listen: %s\n", argv[0], strerror(errno));
         close(sock);
         pcap_close(pch);
         return 3;
     }
 
     if (pthread_create(&ptaccess, NULL, acceptor, (void *)(long)sock) < 0) {
-        perror("pcapper: pthread_create");
+        fprintf(stderr, "%s: pthread_create: %s\n", argv[0], strerror(errno));
         close(sock);
         pcap_close(pch);
         return 8;
-    } else {
-        pthread_detach(ptaccess);
     }
+    pthread_detach(ptaccess);
 
 #ifdef SHOW_STATISTICS
     if (pthread_create(&ptcpu, NULL, watchstat, (void *)&bigfs) < 0) {
-        perror("pcapper: pthread_create CPU");
+        fprintf(stderr, "%s: pthread_create CPU: %s\n",
+            argv[0], strerror(errno));
         goto abend;
     } else {
         pthread_detach(ptcpu);
     }
 #endif
 
-    for (;;) {
-        packet = pcap_next(pch, &head);
-        if (packet != NULL) {
-#if 0
-            dumppkt(packet);
-#endif
-            blastpacket(&bigfs, packet, &head);
-        }
+    result = pcap_loop(pch, -1, blastpacket, (u_char *)&bigfs);
+    if (result == PCAP_ERROR) {
+        fprintf(stderr, "%s: pcap_loop: %s\n", argv[0], pcap_geterr(pch));
+    } else if (result == PCAP_ERROR_BREAK) {
+        fprintf(stderr,
+            "%s: pcap_breakloop called before any packets were received\n",
+            argv[0]);
+    } else {
     }
+
 #ifdef SHOW_STATISTICS
     pthread_cancel(ptcpu);
 abend:
