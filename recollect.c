@@ -172,6 +172,7 @@ void *conner(void *vname) {
     prog = (char *)vname;
     pthread_mutex_lock(&connlock);
 
+#if 0
     /* try once with the big fd_set locked, then fall back to the background */
     for (i = 0; i < nsys; i++) {
         if (FD_ISSET(i, &needconn)) {
@@ -180,18 +181,21 @@ void *conner(void *vname) {
             if (connect(sys[i].sock, (struct sockaddr *)&sys[i].sin,
                 sizeof (struct sockaddr_in)) < 0) {
                 fprintf(stderr,
-                    "\r\033[2KError connecting to %s:%u for system %s: %s\n",
+                    "\r\033[2KError connecting to %s:%u as system %s: %s\n",
                     inet_ntoa((struct in_addr)sys[i].sin.sin_addr),
                     ntohs(sys[i].sin.sin_port), sys[i].s,
                     strerror(errno));
             } else {
-                fputs("\r\033[2K", stderr);
+                fprintf(stderr, "\r\033[2K%s: Connected to %s:%u (%s)\n",
+                    prog, inet_ntoa((struct in_addr)sys[i].sin.sin_addr),
+                    ntohs(sys[i].sin.sin_port), sys[i].s);
                 fflush(stderr);
                 FD_SET(sys[i].sock, &bigfs);
                 FD_CLR(i, &needconn);
             }
         }
     }
+#endif
 
     for (;;) {
         memcpy(&fs, &needconn, sizeof (fd_set));
@@ -199,15 +203,17 @@ void *conner(void *vname) {
 
         for (i = 0; i < nsys; i++) {
             if (FD_ISSET(i, &fs)) {
-                fprintf(stderr, "\r%s: connecting to %s ...", prog, sys[i].s);
+                fprintf(stderr, "%s: connecting to %s ...", prog, sys[i].s);
                 fflush(stderr);
                 if (connect(sys[i].sock, (struct sockaddr *)&sys[i].sin,
                     sizeof (struct sockaddr_in)) < 0) {
-                    fprintf(stderr, "\r\033[2K%s: error connecting to %s:%u for system %s: %s\n",
+                    fprintf(stderr, "\r\033[2K%s: error connecting to %s:%u as system %s: %s\n",
                         prog, inet_ntoa((struct in_addr)sys[i].sin.sin_addr),
                         ntohs(sys[i].sin.sin_port), sys[i].s, strerror(errno));
                 } else {
-                    fputs("\r\033[2K", stderr);
+                    fprintf(stderr, "\r\033[2K%s: Connected to %s:%u (%s)\n",
+                        prog, inet_ntoa((struct in_addr)sys[i].sin.sin_addr),
+                        ntohs(sys[i].sin.sin_port), sys[i].s);
                     fflush(stderr);
                     pthread_mutex_lock(&connlock);
                     FD_SET(sys[i].sock, &bigfs);
@@ -240,7 +246,7 @@ int clobber(int i) {
     FD_CLR(sys[i].sock, &bigfs);
     pthread_mutex_unlock(&connlock);
     if ((sys[i].sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        fprintf(stderr, "recollect: couldn't create socket for %s: %s\n",
+        fprintf(stderr, "recollect: couldn't create socket for %s (dropping): %s\n",
             sys[i].s, strerror(errno));
         return 1;
     }
@@ -400,16 +406,19 @@ int main(int argc, char *argv[]) {
 
         tv.tv_sec = 1;
         tv.tv_usec = 0;
+        fprintf(stderr, "recollect: examining up to FD %d...\n", lastsock);
         if (select(lastsock + 1, &rfs, NULL, &xfs, &tv) > 0) {
             for (i = 0; i < nsys; i++) {
                 if (FD_ISSET(sys[i].sock, &xfs)) {
-                    fprintf(stderr, "Closing socket for %s due to exception.\n",
+                    fprintf(stderr,
+                        "\rrecollect: closing socket for %s due to exception\n",
                         sys[i].s);
                     if (!clobber(i)) {
                         shouldsig++;
                     }
                 } else if (FD_ISSET(sys[i].sock, &rfs) && consume(i)) {
-                    fprintf(stderr, "Closing errored socket for %s.\n",
+                    fprintf(stderr,
+                        "\rrecollect: closing errored socket for %s\n",
                         sys[i].s);
                     if (!clobber(i)) {
                         shouldsig++;
