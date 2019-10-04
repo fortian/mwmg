@@ -170,6 +170,8 @@ void *conner(void *vname) {
     int alreadyfailed = 0;
 
     prog = (char *)vname;
+    fprintf(stderr, "%s: connecting to hosts...\n", prog);
+    fflush(stderr);
     pthread_mutex_lock(&connlock);
 
 #if 0
@@ -222,6 +224,8 @@ void *conner(void *vname) {
                 }
             }
         }
+        fprintf(stderr, "%s: waiting 10 seconds before looping again...\n",
+            prog);
         pthread_mutex_lock(&connlock);
         if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0) {
             if (!alreadyfailed) {
@@ -379,8 +383,8 @@ int main(int argc, char *argv[]) {
 
     f = fopen(cfg, "r");
     if (f == NULL) {
-        fprintf(stderr, "recollect: couldn't open configuration file %s: %s\n", cfg,
-            strerror(errno));
+        fprintf(stderr, "%s: couldn't open configuration file %s: %s\n",
+            argv[0], cfg, strerror(errno));
         return 3;
     }
     while (fgets(buf, LINELEN, f) != NULL) {
@@ -389,10 +393,12 @@ int main(int argc, char *argv[]) {
         if (feof(f)) break;
     }
     fclose(f);
-    fputs("recollect: configuration file loaded, beginning processing...\n", stderr);
+    fprintf(stderr, "%s: configuration file loaded, beginning processing...\n",
+        argv[0]);
 
     if (pthread_create(&ptconn, NULL, conner, argv[0]) < 0) {
-        perror("recollect: couldn't create connections thread");
+        fprintf(stderr, "%s: couldn't create connections thread: %s",
+            argv[0], strerror(errno));
         return errno;
     }
     pthread_detach(ptconn);
