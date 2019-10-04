@@ -10,7 +10,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     while (st > 0) {
-        printf("\r\033[2KSleeping for %d second%s...", st, (st > 1) ? "s" : "");
+        printf("\r\033[2KDelaying for %d second%s...", st, (st > 1) ? "s" : "");
         fflush(stdout);
         sleep(1);
         st--;
