@@ -87,6 +87,10 @@ Usage: `pcapper [-f logfile] [-p port] [-i interface] [-m <src | dst | spoof>]`
     to BMF, which relayed traffic using this signature.  It might help identify
     traffic from other multicast forwarders.
 
+- `-r` allows you to specify the interface whose MAC address you want to use
+  when determining the source of a packet.  The default is to use the MAC
+  address of the monitored interface.
+
 ## Obsolete Syntax:
 
 `-s` used to specify the server interface to listen on.  It needed to be up
