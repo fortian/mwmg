@@ -164,6 +164,17 @@ static void addconn(char *s) {
     fflush(stderr);
 }
 
+#if 0
+static void spin(void) {
+    const char s[] = "/-\\|";
+    static unsigned char ofs = 0;
+
+    fprintf(stderr, "\r\033[2K%c", s[ofs++]);
+    ofs %= 4;
+    fflush(stderr);
+}
+#endif
+
 void *conner(void *vname) {
     int i;
     fd_set fs;
@@ -354,6 +365,11 @@ int consume(int i) { /* Format change on 2015 08 07 */
             t->tm_hour, t->tm_min, t->tm_sec);
         fflush(stderr);
         last = otw.sec;
+#if 0
+    } else {
+        fputc('.', stderr);
+        fflush(stderr);
+#endif
     }
 #endif
     fflush(stdout);
@@ -414,7 +430,11 @@ int main(int argc, char *argv[]) {
     pthread_detach(ptconn);
     pthread_cond_signal(&waitconn);
 
+    fprintf(stderr, __FILE__ ": %s: %d: Entering big loop...\n", __func__, __LINE__);
     for (;;) {
+#if 0
+        spin();
+#endif
         pthread_mutex_lock(&connlock);
         memcpy(&rfs, &bigfs, sizeof (fd_set));
         memcpy(&xfs, &bigfs, sizeof (fd_set));

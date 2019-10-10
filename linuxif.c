@@ -13,12 +13,13 @@ See the file LICENSE which should have accompanied this software. */
 #include <arpa/inet.h>
 #include <linux/if.h>
 #include <errno.h>
+#include <ctype.h>
 #include "linuxif.h"
 
 #define SIN struct sockaddr_in
 #define ETA struct ether_addr
 /* Learn the MAC and IP of an interface.  Returns errno on failure. */
-int manhandle(char *dsttmac, struct ether_addr *dstbmac, struct in_addr *dstip,
+int manhandle(char *dsttmac, ETA *dstbmac, struct in_addr *dstip,
     int *dstidx, const char *ifname, short *flags) {
     char buf[BUFSIZ];
     struct ifconf ifc;
@@ -28,6 +29,13 @@ int manhandle(char *dsttmac, struct ether_addr *dstbmac, struct in_addr *dstip,
     int i;
     int rv = ENOENT;
     uint8_t *mac;
+    int ethidx = -1;
+    /* I want bitfields but the compiler is yelling at me, so wevs. */
+    int dsttmacset = 0;
+    int flagset = 0;
+    int dstipset = 0;
+    int dstbmacset = 0;
+    int dstidxset = 0;
 
     /* Get a socket handle. */
     if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -48,49 +56,71 @@ int manhandle(char *dsttmac, struct ether_addr *dstbmac, struct in_addr *dstip,
     /* Iterate through the list of interfaces. */
     ifr = ifc.ifc_req;
     nifs = ifc.ifc_len / sizeof (struct ifreq);
-    for (i = 0; i < nifs; i++) {
+    for (i = 0; (i < nifs) && (ethidx < 0); i++) {
         if (!strcmp(ifr[i].ifr_name, ifname)) {
-            if (flags != NULL) {
-                if (ioctl(sock, SIOCGIFFLAGS, &ifr[i]) < 0) {
-                    perror("ioctl(SIOCGIFFLAGS)");
-                    *flags = 0; /* It's unlikely that no flags could be set. */
-                } else {
-                    *flags = ifr[i].ifr_flags;
-                }
-            }
-            if (dstip != NULL) {
-                memcpy(dstip, &((SIN *)&ifr[i].ifr_addr)->sin_addr,
-                    sizeof (struct in_addr));
-            }
+            ethidx = i;
+        }
+    }
 
+    if (ethidx >= 0) {
+        if (dsttmac != NULL) {
+            if (ioctl(sock, SIOCGIFHWADDR, &ifr[ethidx]) < 0) {
+                rv = errno;
+                fprintf(stderr, "ioctl(%s, SIOCGIFHWADDR): %s\n",
+                    ifname, strerror(errno));
+                close(sock);
+                return rv;
+            }
 #pragma GCC diagnostic push
             /* The lines with struct ether_addr * annoy the compiler. */
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
-            if (dsttmac != NULL) {
-                if (ioctl(sock, SIOCGIFHWADDR, &ifr[i]) < 0) {
-                    rv = errno;
-                    perror("ioctl(SIOCGIFHWADDR)");
-                    close(sock);
-                    return rv;
-                }
-                mac = ((struct ether_addr *)&(ifr[i].ifr_hwaddr.sa_data))->ether_addr_octet;
-                snprintf(dsttmac, 18, "%02x:%02x:%02x:%02x:%02x:%02x",
-                    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-            }
+            mac = ((ETA *)&(ifr[ethidx].ifr_hwaddr.sa_data))->ether_addr_octet;
 
-            if (dstbmac != NULL) {
-                mac = ((struct ether_addr *)&(ifr[i].ifr_hwaddr.sa_data))->ether_addr_octet;
-                memcpy(dstbmac, mac, 6);
+            if ((mac[0] != 2) || (mac[1] != 2) || (mac[2] != 0)) {
+                snprintf(dsttmac, MACLEN, "%02x:%02x:%02x:%02x:%02x:%02x",
+                    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+                dsttmac[MACLEN] = 0;
+                dsttmacset = 1;
+                fprintf(stderr, __FILE__ ": %s: %d: Got good MAC on %s: %s\n",
+                    __func__, __LINE__, ifname, dsttmac);
+            } else {
+                /* Otherwise this is a weird useless MAC, so use the rtr#
+                interface (if it exists). */
+                fprintf(stderr, __FILE__ ": %s: %d: Got bogus MAC on %s\n",
+                    __func__, __LINE__, ifname);
             }
+        }
+
+        if (flags != NULL) {
+            if (ioctl(sock, SIOCGIFFLAGS, &ifr[ethidx]) < 0) {
+                fprintf(stderr, "ioctl(%s, SIOCGIFFLAGS): %s\n",
+                    ifname, strerror(errno));
+                *flags = 0; /* It's unlikely that no flags could be set. */
+            } else {
+                *flags = ifr[ethidx].ifr_flags;
+                flagset = 1;
+            }
+        }
+
+        if (dstip != NULL) {
+            memcpy(dstip, &((SIN *)&ifr[ethidx].ifr_addr)->sin_addr,
+                sizeof (struct in_addr));
+            dstipset = 1;
+        }
+
+        if (dstbmac != NULL) {
+            mac = ((ETA *)&(ifr[ethidx].ifr_hwaddr.sa_data))->ether_addr_octet;
+            memcpy(dstbmac, mac, 6);
+            dstbmacset = 1;
+        }
 #pragma GCC diagnostic pop
 
-            if (dstidx != NULL) {
-                *dstidx = i;
-            }
-
-            rv = 0;
-            break;
+        if (dstidx != NULL) {
+            *dstidx = ethidx;
+            dstidxset = 1;
         }
+
+        rv = -!(dsttmacset || flagset || dstipset || dstbmacset || dstidxset);
     }
 
     close(sock);

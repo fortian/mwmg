@@ -647,17 +647,20 @@ int main(int argc, char *argv[]) {
 #ifdef SHOW_STATISTICS
     pthread_t ptcpu;
 #endif
+#if 0
     bpf_u_int32 ip, mask;
+#endif
     int result;
     struct bpf_program filter;
     char filterstr[FILTERLEN];
-    int counter = 0;
+    int counter;
     char listendev[IFNAMSIZ] = LISTENDEV;
+    char *rtrdev = listendev;
 #if 0
     char serverdev[IFNAMSIZ] = SERVERDEV;
 #endif
     uint16_t port = PCAPPER_PORT;
-    char mac[MACLEN];
+    char mac[MACLEN + 1];
     int mode = MODE_SRC;
 
     for (i = 1; i < argc; i++) {
@@ -665,11 +668,13 @@ int main(int argc, char *argv[]) {
             if (++i < argc) {
                 port = atoi(argv[i]);
                 if (!port) {
-                    fputs("Invalid port specified with -p.\n", stderr);
+                    fprintf(stderr,
+                        "%s: Invalid port specified with -p.\n", argv[0]);
                     return 15;
                 }
             } else {
-                fputs("You must specify a port when using -p.\n", stderr);
+                fprintf(stderr, "%s: You must specify a port when using -p.\n",
+                    argv[0]);
                 return 14;
             }
 #if 0
@@ -678,8 +683,9 @@ int main(int argc, char *argv[]) {
                 strncpy(serverdev, argv[i], IFNAMSIZ);
                 serverdev[IFNAMSIZ - 1] = 0;
             } else {
-                fputs("You must specify an interface name when using -s.\n",
-                    stderr);
+                fprintf(stderr,
+                    "You must specify an interface name when using -s.\n",
+                    argv[0]);
                 return 9;
             }
 #endif
@@ -687,8 +693,9 @@ int main(int argc, char *argv[]) {
             if (++i < argc) {
                 logfn = argv[i];
             } else {
-                fputs("You must specify a logfile name when using -f.\n",
-                    stderr);
+                fprintf(stderr,
+                    "%s: You must specify a logfile name when using -f.\n",
+                    argv[0]);
                 return 18;
             }
         } else if (!strcmp(argv[i], "-i")) {
@@ -696,23 +703,35 @@ int main(int argc, char *argv[]) {
                 strncpy(listendev, argv[i], IFNAMSIZ);
                 listendev[IFNAMSIZ - 1] = 0;
             } else {
-                fputs("You must specify an interface name when using -i.\n",
-                    stderr);
+                fprintf(stderr,
+                    "%s: You must specify an interface name when using -i.\n",
+                    argv[0]);
                 return 13;
             }
         } else if (!strcmp(argv[i], "-m")) {
             if (++i < argc) {
-                if (!strcmp(argv[i], "src")) mode = MODE_SRC;
-                else if (!strcmp(argv[i], "dst")) mode = MODE_DST;
-                else if (!strcmp(argv[i], "spoof")) mode = MODE_SPOOF;
-                else {
-                    fprintf(stderr, "Invalid mode `%s' - valid modes are src, "
-                        "dst, or spoof.\n", argv[i]);
+                if (!strcmp(argv[i], "src")) {
+                    mode = MODE_SRC;
+                } else if (!strcmp(argv[i], "dst")) {
+                    mode = MODE_DST;
+                } else if (!strcmp(argv[i], "spoof")) {
+                    mode = MODE_SPOOF;
+                } else {
+                    fprintf(stderr, "%s: Invalid mode `%s' - valid modes are src, dst, or spoof.\n", argv[0], argv[i]);
                     return 19;
                 }
             } else {
-                fputs("You must specify a mode when using -m.\n", stderr);
+                fprintf(stderr, "%s: You must specify a mode when using -m.\n",
+                    argv[0]);
                 return 20;
+            }
+        } else if (!strcmp(argv[i], "-r")) {
+            if (++i < argc) {
+                rtrdev = argv[i];
+            } else {
+                fprintf(stderr,
+                    "%s: You must specify a router device when using -r.\n",
+                    argv[0]);
             }
         } else {
             fprintf(stderr, "Usage: %s [-f logfile] [-p port] "
@@ -721,18 +740,44 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    do {
-        if ((i = manhandle(mac, NULL, &lan.sin_addr, NULL, listendev, NULL))) {
+    counter = 0;
+    while ((i = getip(&lan.sin_addr, listendev, NULL))) {
+        if (i) {
             counter++;
+            if (counter > 60) {
+                if (i > 0) {
+                    fprintf(stderr, "%s: couldn't get IP address for %s: %s\n",
+                        argv[0], listendev, strerror(i));
+                } else {
+                    fprintf(stderr, "%s: No IP address found for %s!\n",
+                        argv[0], listendev);
+                }
+                return 16;
+            } else {
+                sleep(1);
+            }
         }
-        if (counter > 60) {
-            fprintf(stderr, "%s: couldn't get IP and MAC address for %s: %s\n",
-                argv[0], listendev, strerror(i));
-            return 16;
-        } else if (i) {
-            sleep(1);
+    }
+
+    counter = 0;
+    while ((i = gettmac(mac, rtrdev))) {
+        if (i) {
+            counter++;
+            if (counter > 60) {
+                if (i > 0) {
+                    fprintf(stderr, "%s: couldn't get MAC address for %s: %s\n",
+                        argv[0], rtrdev, strerror(i));
+                } else {
+                    fprintf(stderr, "%s: No MAC address found for %s!\n",
+                        argv[0], rtrdev);
+                }
+                return 22;
+            } else {
+                sleep(1);
+            }
         }
-    } while (i);
+    }
+
 
     if (mode == MODE_SRC) {
         sprintf(filterstr, SRCFILTER, mac);
@@ -746,11 +791,13 @@ int main(int argc, char *argv[]) {
         return 21;
     }
 
+#if 0
     if (pcap_lookupnet(listendev, &ip, &mask, errbuf) < 0) {
         fprintf(stderr, "%s: couldn't get network or mask for %s: %s\n",
             argv[0], listendev, errbuf);
         return 5;
     }
+#endif
 
     pch = pcap_open_live(listendev, SNAP_LEN, PROMISC_MODE, TIMEOUT_MS, errbuf);
     if (pch == NULL) {
@@ -759,7 +806,10 @@ int main(int argc, char *argv[]) {
         return 4;
     }
 
-    if (pcap_compile(pch, &filter, filterstr, 1, mask) < 0) {
+    fprintf(stderr, __FILE__ ": %s: %d: filter for %s: %s\n",
+        __func__, __LINE__, listendev, filterstr);
+    fflush(stderr);
+    if (pcap_compile(pch, &filter, filterstr, 1, /* mask */ PCAP_NETMASK_UNKNOWN) < 0) {
         fprintf(stderr, "%s: couldn't compile filter `%s': %s\n",
             argv[0], filterstr, pcap_geterr(pch));
         pcap_close(pch);

@@ -11,6 +11,7 @@ See the file LICENSE which should have accompanied this software. */
 #include <netinet/in.h>
 #include <netinet/ether.h>
 
+#define MACLEN 18
 #define IFCLEN 512
 
 /* Learn the MAC and IP of an interface.  Returns errno on failure. */
