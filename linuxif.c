@@ -81,13 +81,6 @@ int manhandle(char *dsttmac, ETA *dstbmac, struct in_addr *dstip,
                     mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
                 dsttmac[MACLEN] = 0;
                 dsttmacset = 1;
-                fprintf(stderr, __FILE__ ": %s: %d: Got good MAC on %s: %s\n",
-                    __func__, __LINE__, ifname, dsttmac);
-            } else {
-                /* Otherwise this is a weird useless MAC, so use the rtr#
-                interface (if it exists). */
-                fprintf(stderr, __FILE__ ": %s: %d: Got bogus MAC on %s\n",
-                    __func__, __LINE__, ifname);
             }
         }
 

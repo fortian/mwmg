@@ -240,17 +240,18 @@ void *conner(void *vname) {
             }
         }
         pthread_mutex_lock(&connlock);
-        if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0) {
-            if (!alreadyfailed) {
+        if (waiting && !alreadyfailed) {
+            if (clock_gettime(CLOCK_REALTIME, &ts) < 0) {
                 fprintf(stderr, "%s: clock_gettime: %s\n",
                     prog, strerror(errno));
                 fflush(stderr);
                 alreadyfailed++;
+                /* Give up, stall out indefinitely. */
+                pthread_cond_wait(&waitconn, &connlock);
+            } else {
+                ts.tv_sec += 10;
+                pthread_cond_timedwait(&waitconn, &connlock, &ts);
             }
-            pthread_cond_wait(&waitconn, &connlock);
-        } else if (waiting) {
-            ts.tv_sec += 10;
-            pthread_cond_timedwait(&waitconn, &connlock, &ts);
         } else {
             pthread_cond_wait(&waitconn, &connlock);
         }

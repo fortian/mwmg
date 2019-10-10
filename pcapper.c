@@ -806,8 +806,6 @@ int main(int argc, char *argv[]) {
         return 4;
     }
 
-    fprintf(stderr, __FILE__ ": %s: %d: filter for %s: %s\n",
-        __func__, __LINE__, listendev, filterstr);
     fflush(stderr);
     if (pcap_compile(pch, &filter, filterstr, 1, /* mask */ PCAP_NETMASK_UNKNOWN) < 0) {
         fprintf(stderr, "%s: couldn't compile filter `%s': %s\n",
