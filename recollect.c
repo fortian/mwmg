@@ -120,9 +120,9 @@ static void addconn(char *s) {
         inet_aton(ip, &sin.sin_addr) && (sin.sin_port = htons(atoi(port))) &&
         ((sock = socket(AF_INET, SOCK_STREAM, 0)) >= 0)) {
 #ifdef TRY_SETSOCKOPT
-        /* These all consistently failed the last time I tried them under
-        Linux, so they're currently disabled.  You're welcome to try turning
-        them on again; they shouldn't hurt. */
+        /* These all consistently failed the last time I tried them under Linux,
+        so they're currently disabled.  You're welcome to try turning them on
+        again; they shouldn't hurt. */
         if (setsockopt(sock, SOL_SOCKET, SO_LINGER, (char *)&l,
             sizeof (struct linger)) < 0) {
             perror("Ignoring error setting socket option SO_LINGER");
