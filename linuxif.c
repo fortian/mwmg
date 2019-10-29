@@ -76,12 +76,16 @@ int manhandle(char *dsttmac, ETA *dstbmac, struct in_addr *dstip,
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
             mac = ((ETA *)&(ifr[ethidx].ifr_hwaddr.sa_data))->ether_addr_octet;
 
+#if 0
             if ((mac[0] != 2) || (mac[1] != 2) || (mac[2] != 0)) {
+#endif
                 snprintf(dsttmac, MACLEN, "%02x:%02x:%02x:%02x:%02x:%02x",
                     mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
                 dsttmac[MACLEN] = 0;
                 dsttmacset = 1;
+#if 0
             }
+#endif
         }
 
         if (flags != NULL) {
