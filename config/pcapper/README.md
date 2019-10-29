@@ -24,7 +24,7 @@ terminated with `\n` (ASCII `0x0A`, aka line feed, `LF`, or newline).
 - `time` is the UNIX timestamp since the epoch, with microsecond precision,
   from the header of the packet.
 
-- `src-addr` and `dest-addr` are the dotted-quad IP addresses of the
+- `src-addr` and `dest-addr` are the dotted-quad IPv4 addresses of the
   packet's source and destination.
 
 - `src-port` and `dest-port` are the unsigned 16-bit port numbers of the
@@ -51,7 +51,7 @@ one active connection to the agent.
 
 # Syntax
 
-Usage: `pcapper [-f logfile] [-p port] [-i interface] [-m <src | dst | spoof>]`
+Usage: `pcapper [-f logfile] [-p port] [-i interface] [-m <none | src | dst | spoof | noloop-<1 | 2 | 3> | "BPF filter">]`
 
 - `-f` allows you to specify a logfile other than the default, which is
   `pcapper.conf` in the agent's current working directory.  Logfiles are
@@ -62,7 +62,7 @@ Usage: `pcapper [-f logfile] [-p port] [-i interface] [-m <src | dst | spoof>]`
   can use a different port number to facilitate multiple agents on a single
   host.
 
-- `-i` specifies the interface to monitor.  It must be up and have an IP
+- `-i` specifies the interface to monitor.  It must be up and have an IPv4
   address at the time `pcapper` is launched.  The default is `eth0`, though
   `eth1` is another common interface to use.  If you want to monitor multiple
   interfaces, you must run multiple instances of the agent.
@@ -71,21 +71,44 @@ Usage: `pcapper [-f logfile] [-p port] [-i interface] [-m <src | dst | spoof>]`
   below, *MAC* is the MAC address of the monitored interface, and *IP* is
   its IPv4 address.
 
-  - `src` is the default, and only collects traffic sent from the current
-    host (the BPF syntax is `ether src` *MAC*).  This is also the
-    recommended setting, since sourced traffic should be unique on a given
-    (sub)network, whereas received traffic (see below) may be multiplied by the
-    network in the presence of broadcasts, multicast, or even a shared collision
-    domain.
+  - `none` performs no filtering whatsoever
+
+  - `src` is the default, and only collects traffic sent from the current host
+    (the BPF syntax is `ether src` *MAC*)
+
+    This is also the recommended setting, since sourced traffic should be unique
+    on a given (sub)network, whereas received traffic (see below) may be
+    multiplied by the network in the presence of broadcasts, multicast, or even
+    a shared collision domain.
 
   - `dst` only collects traffic sent to the current host, ignoring its own
-    messages (the BPF is `ether src not` *MAC*).
+    messages (the BPF is `ether src not` *MAC*)
 
-  - `spoof` collects traffic sent from the current host but not by it (i.e.,
-    traffic that is spoofed to be from this host, but came from elsewhere).
-    (The BPF is `src` *IP* `and ether src not` *MAC*).  This is largely relevant
-    to BMF, which relayed traffic using this signature.  It might help identify
-    traffic from other multicast forwarders.
+  - `spoof` collects traffic sent from the current host but not by it, i.e.,
+    traffic that is spoofed to be from this host, but came from elsewhere (the
+    BPF is `src` *IP* `and ether src not` *MAC*)
+
+    This is largely only relevant to BMF, which relayed traffic using this
+    signature.  It might help identify traffic from other multicast forwarders.
+
+  - `"BPF filter"` is any valid BPF filter, with the following extensions:
+
+    - `%m` will always be replaced with the chosen interface's MAC address (see
+      `-r` below)
+
+    - `%i` will always be replaced with the chosen interface's IPv4 address
+
+    - any other character following a `%` will be passed through unchanged,
+      including another `%`, though the leading `%` will always be consumed
+
+    Remember to escape the filter from the shell if needed.  Use this if you
+    want to specify an arbitrary BPF filter.  Useful examples include:
+
+    - `ether src %m and not dst %i`
+
+    - `ether src %m and not ether dst %m`
+
+    - `ether src %m and not (dst %i or ether dst %m)`
 
 - `-r` allows you to specify the interface whose MAC address you want to use
   when determining the source of a packet.  The default is to use the MAC

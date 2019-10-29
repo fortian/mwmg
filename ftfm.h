@@ -64,7 +64,12 @@ struct wire {
     uint8_t encapped; /* was reserved */
 } __attribute__ ((__packed__));
 
-enum { MODE_SRC, MODE_DST, MODE_SPOOF };
+enum {
+    MODE_NONE,
+    MODE_SRC, MODE_DST, MODE_SPOOF,
+    MODE_NL1, MODE_NL2, MODE_NL3,
+    MODE_BPF
+};
 
 struct flow {
     uint16_t id;

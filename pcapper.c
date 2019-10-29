@@ -38,7 +38,7 @@ See the file LICENSE which should have accompanied this software. */
 #define SRCFILTER "ether src %s"
 #define DSTFILTER "ether src not %s"
 #define SPOFILTER "src %s and ether src not %s"
-#define FILTERLEN 64
+#define FILTERLEN BUFSIZ
 #define LOGFILE "pcapper.log"
 
 fd_set bigfs = { { 0 } };
@@ -192,9 +192,12 @@ void doip(struct ip_pkt *p) {
     printf("Destination address: %s\n", inet_ntoa(hog));
     printf("Protocol: ");
     switch (p->h.protocol) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
         case IPPROTO_ICMP: puts("ICMP"); do_icmp(&p->p.ih); break;
         case IPPROTO_TCP: puts("TCP"); do_tcp(&p->p.th); break;
         case IPPROTO_UDP: puts("UDP"); do_udp(&p->p.uh); break;
+#pragma GCC diagnostic pop
         default: printf("Unknown protocol %u (%x)\n", p->h.protocol,
             p->h.protocol);
     }
@@ -334,8 +337,11 @@ void blastpacket(u_char *ff, const struct pcap_pkthdr *head, const u_char *pkt) 
             otw.saddr = p->h.saddr;
             otw.daddr = p->h.daddr;
             /* same place in TCP and UDP */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
             memcpy(&otw.sport, &p->p.th.source + (headlen - 20), 2);
             memcpy(&otw.dport, &p->p.th.dest + (headlen - 20), 2);
+#pragma GCC diagnostic pop
             if (!otw.dport) {
                 hog.s_addr = p->h.saddr;
                 strcpy(sip, inet_ntoa(hog));
@@ -635,6 +641,41 @@ void *watchstat(void *arg) {
 }
 #endif
 
+int pcprintf(char *dest, size_t len, char const *format, const char *ip, const char *mac) {
+    char const *src;
+    char *dst;
+    int count = 0;
+    int rv = 0;
+
+    for (dst = dest, src = format; *src && ((dst - dest) < len); src++) {
+        if (*src == '%') {
+            src++;
+            switch (*src) {
+                case 'i':
+                    count = snprintf(dst, len - (dst - dest), ip);
+                    break;
+                case 'm':
+                    count = snprintf(dst, len - (dst - dest), mac);
+                    break;
+                case 0:
+                    return rv;
+                default:
+                    count = 1;
+                    *dst = *src;
+            }
+            rv += count;
+            if (count >= (len - (dst - dest))) {
+                /* we ran out of space */
+                return rv;
+            }
+            dst += count;
+        } else {
+            *dst++ = *src;
+        }
+    }
+    return rv;
+}
+
 int main(int argc, char *argv[]) {
     pcap_t *pch;
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -700,7 +741,7 @@ int main(int argc, char *argv[]) {
             }
         } else if (!strcmp(argv[i], "-i")) {
             if (++i < argc) {
-                strncpy(listendev, argv[i], IFNAMSIZ);
+                strncpy(listendev, argv[i], IFNAMSIZ - 1);
                 listendev[IFNAMSIZ - 1] = 0;
             } else {
                 fprintf(stderr,
@@ -710,15 +751,20 @@ int main(int argc, char *argv[]) {
             }
         } else if (!strcmp(argv[i], "-m")) {
             if (++i < argc) {
-                if (!strcmp(argv[i], "src")) {
+                if (!strcmp(argv[i], "none")) {
+                    mode = MODE_NONE;
+                } else if (!strcmp(argv[i], "src")) {
                     mode = MODE_SRC;
                 } else if (!strcmp(argv[i], "dst")) {
                     mode = MODE_DST;
                 } else if (!strcmp(argv[i], "spoof")) {
                     mode = MODE_SPOOF;
                 } else {
+                    mode = -i;
+#if 0
                     fprintf(stderr, "%s: Invalid mode `%s' - valid modes are src, dst, or spoof.\n", argv[0], argv[i]);
                     return 19;
+#endif
                 }
             } else {
                 fprintf(stderr, "%s: You must specify a mode when using -m.\n",
@@ -735,7 +781,8 @@ int main(int argc, char *argv[]) {
             }
         } else {
             fprintf(stderr, "Usage: %s [-f logfile] [-p port] "
-                "[-i interface] [-m <src | dst | spoof>]\n", argv[0]);
+                "[-i interface] [-m <none | src | dst | spoof | \"BPF filter\">]\n",
+                argv[0]);
             return 12;
         }
     }
@@ -780,16 +827,20 @@ int main(int argc, char *argv[]) {
 
 
     if (mode == MODE_SRC) {
-        sprintf(filterstr, SRCFILTER, mac);
+        snprintf(filterstr, FILTERLEN - 1, SRCFILTER, mac);
     } else if (mode == MODE_DST) {
-        sprintf(filterstr, DSTFILTER, mac);
+        snprintf(filterstr, FILTERLEN - 1, DSTFILTER, mac);
     } else if (mode == MODE_SPOOF) {
-        sprintf(filterstr, SPOFILTER,
+        snprintf(filterstr, FILTERLEN - 1, SPOFILTER,
             inet_ntoa((struct in_addr)lan.sin_addr), mac);
-    } else {
+    } else if (mode < 0) {
+        pcprintf(filterstr, FILTERLEN - 1, argv[-mode],
+            inet_ntoa((struct in_addr)lan.sin_addr), mac);                                                               
+    } else if (mode != MODE_NONE) {
         fprintf(stderr, "%s: illegal mode %02X\n", argv[0], mode);
         return 21;
     }
+    filterstr[IFNAMSIZ - 1] = 0;
 
 #if 0
     if (pcap_lookupnet(listendev, &ip, &mask, errbuf) < 0) {
@@ -807,18 +858,20 @@ int main(int argc, char *argv[]) {
     }
 
     fflush(stderr);
-    if (pcap_compile(pch, &filter, filterstr, 1, /* mask */ PCAP_NETMASK_UNKNOWN) < 0) {
-        fprintf(stderr, "%s: couldn't compile filter `%s': %s\n",
-            argv[0], filterstr, pcap_geterr(pch));
-        pcap_close(pch);
-        return 6;
-    }
+    if (mode != MODE_NONE) {
+        if (pcap_compile(pch, &filter, filterstr, 1, /* mask */ PCAP_NETMASK_UNKNOWN) < 0) {
+            fprintf(stderr, "%s: couldn't compile filter \"%s\": %s\n",
+                argv[0], filterstr, pcap_geterr(pch));
+            pcap_close(pch);
+            return 6;
+        }
 
-    if (pcap_setfilter(pch, &filter) < 0) {
-        fprintf(stderr, "%s: couldn't apply filter: %s\n",
-            argv[0], pcap_geterr(pch));
-        pcap_close(pch);
-        return 7;
+        if (pcap_setfilter(pch, &filter) < 0) {
+            fprintf(stderr, "%s: couldn't apply filter: %s\n",
+                argv[0], pcap_geterr(pch));
+            pcap_close(pch);
+            return 7;
+        }
     }
 
 #if 0
