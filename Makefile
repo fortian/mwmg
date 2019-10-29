@@ -22,7 +22,7 @@ CFLAGS=$(DEBUG) $(NDEBUG) -DBUILD_DATE=\"`date '+%y%m%d.%H%M%S'`\" \
   -DBUILD_USER=\"$(USER)\" -D_REENTRANT -DUSE_MGEN=1 -DENCAP_DBLCOUNT=1 \
   -DRUN_FOREVER=1 -Wno-address-of-packed-member \
   -D_FORTIFY_SOURCE=1 -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700 \
-  -D_DEFAULT_SOURCE=1
+  -D_DEFAULT_SOURCE=1 -pthread
 
 # For Gtk+ 1 (may no longer work):
 #GTKCFLAGS=`gtk-config --cflags`
@@ -43,7 +43,7 @@ GTKLDFLAGS=`pkg-config --libs gtk+-2.0`
 #LDFLAGS += -pg
 #CFLAGS += -pg
 
-LDFLAGS=$(DEBUG) $(NDEBUG) $(EFENCE) -lpthread
+LDFLAGS=$(DEBUG) $(NDEBUG) $(EFENCE) -pthread
 
 VERSION=3.1.0
 
