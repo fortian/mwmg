@@ -8,8 +8,7 @@ CC=gcc
 
 # Define one of DEBUG or NDEBUG but not both
 # Note that builds without DEBUG have not been tested recently.
-#DEBUG-O2 -ggdb -Wunused -Werror -Wall -Wno-deprecated -Wno-error=deprecated-declarations -DDEBUG -UNDEBUG
-DEBUG=-O2 -ggdb -Wunused -Wall -Wno-deprecated -Wno-error=deprecated-declarations -DDEBUG -UNDEBUG
+DEBUG=-O2 -ggdb -Wunused -Werror -Wall -Wno-deprecated -Wno-deprecated-declarations -DDEBUG -UNDEBUG
 #NDEBUG=-O9 -g -DGTK_NO_CHECK_CASTS -DNDEBUG -UDEBUG
 
 # It's the 21st century, everyone should have GCC 4 or higher.
@@ -58,17 +57,17 @@ clean:
 pcapper.o: pcapper.c ftfm.h linuxif.h
 
 pcapper: pcapper.o linuxif.o
-	$(CC) $^ $(LDFLAGS) -lpcap -lpthread -o $@
+	$(CC) $^ $(LDFLAGS) -lpcap -o $@
 
 recollect.o: recollect.c
 
 recollect: recollect.o
-	$(CC) $^ $(LDFLAGS) -lpthread -o $@
+	$(CC) $^ $(LDFLAGS) -o $@
 
 svcreqollect.o: svcreqollect.c
 
 svcreqollect: svcreqollect.o
-	$(CC) $^ -o $@ $(LDFLAGS) -lpthread -lcurl -ljson-c
+	$(CC) $^ -o $@ $(LDFLAGS) -lcurl -ljson-c
 
 mwmg.o: CFLAGS += $(GTKCFLAGS)
 mwmg.o: mwmg.c mwmg.h bits.xpm reqs.xpm
