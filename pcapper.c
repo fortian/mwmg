@@ -98,22 +98,22 @@ void dumppacket(const unsigned char *pkt, size_t len) {
     fflush(stdout);
 }
 
-void do_udp(struct udphdr *p) {
-    printf("Source port: %u\n", p->source);
-    printf("Destination port: %u\n", p->dest);
-    printf("Length: %u\n", p->len);
+void do_udp(struct ip_pkt *p) {
+    printf("Source port: %u\n", p->p.uh.uh_sport);
+    printf("Destination port: %u\n", p->p.uh.uh_dport);
+    printf("Length: %u\n", p->p.uh.uh_ulen);
 }
 
-void do_tcp(struct tcphdr *p) {
-    printf("Source port: %u\n", p->source);
-    printf("Destination port: %u\n", p->dest);
-    printf("Sequence number: %u\n", p->seq);
-    printf("Acknowledgement number: %u\n", p->ack_seq);
+void do_tcp(struct ip_pkt *p) {
+    printf("Source port: %u\n", p->p.th.th_sport);
+    printf("Destination port: %u\n", p->p.th.th_dport);
+    printf("Sequence number: %u\n", p->p.th.th_seq);
+    printf("Acknowledgement number: %u\n", p->p.th.th_ack);
 }
 
-void do_icmp(struct icmphdr *p) {
+void do_icmp(struct ip_pkt *p) {
     printf("Type: ");
-    switch (p->type) {
+    switch (p->p.ih.type) {
         case ICMP_ECHOREPLY: puts("Echo Reply"); break;
         case ICMP_DEST_UNREACH: puts("Destination Unreachable"); break;
         case ICMP_SOURCE_QUENCH: puts("Source Quench"); break;
@@ -127,12 +127,12 @@ void do_icmp(struct icmphdr *p) {
         case ICMP_ADDRESS: puts("Address Mask Request"); break;
         case ICMP_ADDRESSREPLY: puts("Address Mask Reply"); break;
         case ICMP_TIMESTAMPREPLY: puts("Timestamp Reply"); break;
-        default: printf("Unknown ICMP type %u\n", p->type);
+        default: printf("Unknown ICMP type %u\n", p->p.ih.type);
     }
     printf("Code: ");
-    switch (p->type) {
+    switch (p->p.ih.type) {
         case ICMP_DEST_UNREACH:
-            switch (p->code) {
+            switch (p->p.ih.code) {
                 case ICMP_NET_UNREACH: puts("Network Unreachable"); break;
                 case ICMP_HOST_UNREACH: puts("Host Unreachable"); break;
                 case ICMP_PROT_UNREACH: puts("Protocol Unreachable"); break;
@@ -149,26 +149,26 @@ void do_icmp(struct icmphdr *p) {
                 case ICMP_PKT_FILTERED: puts("Packet Filtered"); break;
                 case ICMP_PREC_VIOLATION: puts("Precedence Violation"); break;
                 case ICMP_PREC_CUTOFF: puts("Precedence Cut Off"); break;
-                default: printf("Unknown Unreachable code %d\n", p->code);
+                default: printf("Unknown Unreachable code %d\n", p->p.ih.code);
             }
             break;
         case ICMP_REDIRECT:
-            switch (p->code) {
+            switch (p->p.ih.code) {
                 case ICMP_REDIR_NET: puts("Network Redirect"); break;
                 case ICMP_REDIR_HOST: puts("Host Redirect"); break;
                 case ICMP_REDIR_NETTOS: puts("Network Redirect/TOS"); break;
                 case ICMP_REDIR_HOSTTOS: puts("Host Redirect/TOS"); break;
-                default: printf("Unknown Redirect code %d\n", p->code);
+                default: printf("Unknown Redirect code %d\n", p->p.ih.code);
             }
             break;
         case ICMP_TIME_EXCEEDED:
-            switch (p->code) {
+            switch (p->p.ih.code) {
                 case ICMP_EXC_TTL: puts("TTL Count Exceeded"); break;
                 case ICMP_EXC_FRAGTIME: puts("Frag Reasm Time Exceeded"); break;
-                default: printf("Unknown Time Exceeded code %d\n", p->code);
+                default: printf("Unknown Time Exceeded code %d\n", p->p.ih.code);
             }
             break;
-        default: printf("Unknown code %d\n", p->code);
+        default: printf("Unknown code %d\n", p->p.ih.code);
     }
 }
 
@@ -192,21 +192,18 @@ void doip(struct ip_pkt *p) {
     printf("Destination address: %s\n", inet_ntoa(hog));
     printf("Protocol: ");
     switch (p->h.protocol) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-        case IPPROTO_ICMP: puts("ICMP"); do_icmp(&p->p.ih); break;
-        case IPPROTO_TCP: puts("TCP"); do_tcp(&p->p.th); break;
-        case IPPROTO_UDP: puts("UDP"); do_udp(&p->p.uh); break;
-#pragma GCC diagnostic pop
+        case IPPROTO_ICMP: puts("ICMP"); do_icmp(p); break;
+        case IPPROTO_TCP: puts("TCP"); do_tcp(p); break;
+        case IPPROTO_UDP: puts("UDP"); do_udp(p); break;
         default: printf("Unknown protocol %u (%x)\n", p->h.protocol,
             p->h.protocol);
     }
     putchar('\n');
 }
 
-void doarp(struct ether_arp *p) {
+void doarp(struct packet *p) {
     printf("Opcode: ");
-    switch (ntohs(p->arp_op)) {
+    switch (ntohs(p->p.arp.arp_op)) {
         case ARPOP_REQUEST: puts("ARP Request"); break;
         case ARPOP_REPLY: puts("ARP Reply"); break;
         case ARPOP_RREQUEST: puts("RARP Request"); break;
@@ -216,17 +213,19 @@ void doarp(struct ether_arp *p) {
         case ARPOP_NAK: puts("ATM ARP NAK"); break;
         default: puts("Unknown ARP opcode");
     }
-    if (p->arp_hrd != htons(ARPHRD_ETHER)) {
-        printf("Not an Ethernet ARP, giving up - %x\n", ntohs(p->arp_hrd));
+    if (p->p.arp.arp_hrd != htons(ARPHRD_ETHER)) {
+        printf("Not an Ethernet ARP, giving up - %x\n", ntohs(p->p.arp.arp_hrd));
     } else {
         printf("Sender: %u.%u.%u.%u (%x:%x:%x:%x:%x:%x)\n",
-            p->arp_spa[0], p->arp_spa[1], p->arp_spa[2], p->arp_spa[3],
-            p->arp_sha[0], p->arp_sha[1], p->arp_sha[2], p->arp_sha[3],
-            p->arp_sha[4], p->arp_sha[5]);
+            p->p.arp.arp_spa[0], p->p.arp.arp_spa[1], p->p.arp.arp_spa[2],
+            p->p.arp.arp_spa[3],
+            p->p.arp.arp_sha[0], p->p.arp.arp_sha[1], p->p.arp.arp_sha[2],
+            p->p.arp.arp_sha[3], p->p.arp.arp_sha[4], p->p.arp.arp_sha[5]);
         printf("Destination: %d.%d.%d.%d (%x:%x:%x:%x:%x:%x)\n",
-            p->arp_tpa[0], p->arp_tpa[1], p->arp_tpa[2], p->arp_tpa[3],
-            p->arp_tha[0], p->arp_tha[1], p->arp_tha[2], p->arp_tha[3],
-            p->arp_tha[4], p->arp_tha[5]);
+            p->p.arp.arp_tpa[0], p->p.arp.arp_tpa[1], p->p.arp.arp_tpa[2],
+            p->p.arp.arp_tpa[3],
+            p->p.arp.arp_tha[0], p->p.arp.arp_tha[1], p->p.arp.arp_tha[2],
+            p->p.arp.arp_tha[3], p->p.arp.arp_tha[4], p->p.arp.arp_tha[5]);
     }
 }
 
@@ -249,8 +248,8 @@ void dumppkt(const u_char *pkt) {
     printf("\nPacket type: %x ", ntohs(p->eh.ether_type));
     switch (ntohs(p->eh.ether_type)) {
         case ETHERTYPE_PUP: puts("PUP"); break;
-        case ETHERTYPE_ARP: puts("ARP"); doarp(&p->p.arp); break;
-        case ETHERTYPE_REVARP: puts("Reverse ARP"); doarp(&p->p.arp); break;
+        case ETHERTYPE_ARP: puts("ARP"); doarp(p); break;
+        case ETHERTYPE_REVARP: puts("Reverse ARP"); doarp(p); break;
         case ETHERTYPE_IP: puts("IP"); doip(&p->p.ip); break;
         default: puts("Unknown type");
     }
@@ -274,15 +273,8 @@ void logpkt(struct wire *otw
         fprintf(f, "%d.%06d:%s:%u:", ntohl(otw->sec), ntohl(otw->usec),
             inet_ntoa(ina), ntohs(otw->sport));
         ina.s_addr = otw->daddr;
-        fprintf(f, "%s:%u:%u:"
-#if 1 || defined(USE_MGEN) || defined(SHOW_STATISTICS)
-           "%u:"
-#endif
-           "%u", inet_ntoa(ina), ntohs(otw->dport), ntohs(otw->len),
-#if 1 || defined(USE_MGEN) || defined(SHOW_STATISTICS)
-            ntohl(otw->flowid),
-#endif
-            otw->proto);
+        fprintf(f, "%s:%u:%u:%u:%u", inet_ntoa(ina), ntohs(otw->dport),
+            ntohs(otw->len), ntohl(otw->flowid), otw->proto);
         /* N.B.: Logfile format changed 2015 08 07 to include MGEN flow ID */
 #ifdef ENCAPS
         if ((encap != NULL) && encap->encapped) {
@@ -303,9 +295,6 @@ void logpkt(struct wire *otw
 void blastpacket(u_char *ff, const struct pcap_pkthdr *head, const u_char *pkt) {
     int i;
     struct wire otw = { 0 };
-#ifdef ENCAPS
-    struct wire encap = { 0 };
-#endif
     struct in_addr hog;
     char sip[16], dip[16];
     struct ip_pkt *p;
@@ -337,11 +326,13 @@ void blastpacket(u_char *ff, const struct pcap_pkthdr *head, const u_char *pkt) 
             otw.saddr = p->h.saddr;
             otw.daddr = p->h.daddr;
             /* same place in TCP and UDP */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-            memcpy(&otw.sport, &p->p.th.source + (headlen - 20), 2);
-            memcpy(&otw.dport, &p->p.th.dest + (headlen - 20), 2);
-#pragma GCC diagnostic pop
+#if 0
+            memcpy(&otw.sport, &p->p.th.th_sport + (headlen - 20), 2);
+            memcpy(&otw.dport, &p->p.th.th_dport + (headlen - 20), 2);
+#else
+            otw.sport = p->p.th.th_sport;
+            otw.dport = p->p.th.th_dport;
+#endif
             if (!otw.dport) {
                 hog.s_addr = p->h.saddr;
                 strcpy(sip, inet_ntoa(hog));
@@ -350,8 +341,8 @@ void blastpacket(u_char *ff, const struct pcap_pkthdr *head, const u_char *pkt) 
                 strcpy(dip, inet_ntoa(hog));
                 dip[15] = 0;
             }
-#if 1 || defined(USE_MGEN)
             otw.flowid = 0;
+
             if (head->caplen >= (0x42 + headlen - 20 + 4)) {
                 if ((!memcmp(&pkt[0x3e + headlen - 20], &otw.dport, 2)) &&
                     (pkt[0x40 + headlen - 20] == 1) &&
@@ -362,40 +353,9 @@ void blastpacket(u_char *ff, const struct pcap_pkthdr *head, const u_char *pkt) 
                     /* Can't find flowID, leave as 0. */
                 }
             }
-#endif
             otw.len = p->h.tot_len;
             otw.proto = p->h.protocol;
-#ifdef ENCAPS
-            /* This is legacy.  ENCAPS should be disabled unless you use BMF. */
-            if ((otw.proto == IPPROTO_UDP) && (otw.dport == ntohs(50698))) {
-                /* it has a header (we already checked if it was a fragment) */
-                if (ntohs(otw.len) < 64) {
-                    fprintf(stderr, "WARNING: not logging encapsulation in %u "
-                        "byte packet.\n", ntohs(otw.len));
-                } else {
-                    encap.sec = htonl(head->ts.tv_sec); /* a good guess */
-                    encap.usec = htonl(head->ts.tv_usec);
-                    /* XXX should check BMF version - v1 is 8 bytes and data
-                       starts at 0x32, while CenGen experimental is 12 bytes and
-                       data starts at 0x36 */
-                    p = (struct ip_pkt *)&pkt[0x36 + (headlen - 20)];
-                    /* XXX should check IP version */
-                    headlen = p->h.ihl * 4;
-                    encap.saddr = p->h.saddr;
-                    encap.daddr = p->h.daddr;
-                    memcpy(&encap.sport, &p->p.th.source + (headlen - 20), 2);
-                    memcpy(&encap.dport, &p->p.th.dest + (headlen - 20), 2);
-                    encap.len = p->h.tot_len;
-                    encap.proto = p->h.protocol;
-                    encap.encapped = 1;
-                }
-            }
-#endif
-#ifdef ENCAPS
-            logpkt(&otw , &encap);
-#else
             logpkt(&otw);
-#endif
             pthread_mutex_lock(&biglock);
             /* don't report relays yet */
             for (i = 0; i < FD_SETSIZE; i++) if (FD_ISSET(i, f)) {
@@ -404,14 +364,6 @@ void blastpacket(u_char *ff, const struct pcap_pkthdr *head, const u_char *pkt) 
                     FD_CLR(i, f);
                     shutdown(i, SHUT_RDWR);
                     close(i);
-#ifdef ENCAPS
-                } else if (encap.encapped &&
-                    (send(i, &encap, sizeof (encap), MSG_NOSIGNAL) < 0)) {
-                    perror("pcapper: send@1 encapped");
-                    FD_CLR(i, f);
-                    shutdown(i, SHUT_RDWR);
-                    close(i);
-#endif
                 }
             }
             pthread_mutex_unlock(&biglock);
@@ -921,9 +873,7 @@ int main(int argc, char *argv[]) {
         close(sock);
         pcap_close(pch);
         return 2;
-    }
-
-    if (listen(sock, 5) < 0) {
+    } else if (listen(sock, 5) < 0) {
         fprintf(stderr, "%s: listen: %s\n", argv[0], strerror(errno));
         close(sock);
         pcap_close(pch);
