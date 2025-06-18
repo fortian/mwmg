@@ -81,7 +81,7 @@ it.
 ### Collector-Grapher Protocol
 
 MWMG consumes an unversioned text format.  Future versions of `mwmg` will
-wither be able to process this format or will exit immediately upon receipt
+either be able to process this format or will exit immediately upon receipt
 of an invalid line.
 
 All line end with a UNIX newline (ASCII NL [0x0A]: `\n`).  All numbers are
