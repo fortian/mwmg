@@ -373,7 +373,6 @@ void blastpacket(u_char *ff, const struct pcap_pkthdr *head, const u_char *pkt) 
     }
 }
 
-#ifdef SHOW_STATISTICS
 uint64_t readmem(void) {
     FILE *f;
     char buf[BUFSIZ];
@@ -386,29 +385,35 @@ uint64_t readmem(void) {
     if (f == NULL) {
         perror("pcapper: fopen");
     } else do {
-        fgets(buf, BUFSIZ, f);
-        buf[BUFSIZ - 1] = 0;
-        if (!strncmp(buf, "MemTotal:", 9)) {
-            idx = &buf[9];
-            while (*idx == ' ') idx++;
-            rv = strtoull(idx, NULL, 10);
-            if (!rv) {
-                fputs("Malformed total line in /proc/meminfo, giving up.\n",
-                    stderr);
+        if (fgets(buf, BUFSIZ, f) != NULL) {
+            buf[BUFSIZ - 1] = 0;
+            if (!strncmp(buf, "MemTotal:", 9)) {
+                idx = &buf[9];
+                while (*idx == ' ') idx++;
+                rv = strtoull(idx, NULL, 10);
+                if (!rv) {
+                    fputs("Malformed total line in /proc/meminfo, giving up.\n",
+                        stderr);
+                    break;
+                }
+            } else if (!(strncmp(buf, "MemFree:", 8) &&
+                strncmp(buf, "Buffers:", 8) && strncmp(buf, "Cached:", 7) &&
+                strncmp(buf, "SwapCached:", 11))) {
+                idx = &buf[11];
+                while (*idx == ' ') idx++;
+                free = strtoull(idx, &hold, 10);
+                rv -= free;
+            } else {
                 break;
             }
-        } else if (!(strncmp(buf, "MemFree:", 8) &&
-            strncmp(buf, "Buffers:", 8) && strncmp(buf, "Cached:", 7) &&
-            strncmp(buf, "SwapCached:", 11))) {
-            idx = &buf[11];
-            while (*idx == ' ') idx++;
-            free = strtoull(idx, &hold, 10);
-            rv -= free;
         } else {
+            perror("pcapper: fgets");
             break;
         }
     } while (!feof(f));
-    if (f != NULL) fclose(f);
+    if (f != NULL) {
+        fclose(f);
+    }
     return rv;
 }
 
@@ -435,8 +440,9 @@ int readstat(uint64_t *d) {
 
     /* The top CPU line is all we need, since we'll be doing our own math. */
     do {
-        fgets(buf, BUFSIZ, f);
-        buf[BUFSIZ - 1] = 0;
+        if (fgets(buf, BUFSIZ, f) != NULL) {
+            buf[BUFSIZ - 1] = 0;
+        }
     } while (strncmp(buf, "cpu ", 4) && !feof(f));
     if (strncmp(buf, "cpu ", 4)) {
         fputs("Ran out of data in /proc/stat.\n", stderr);
@@ -456,9 +462,10 @@ int readstat(uint64_t *d) {
     }
 
     do {
-        fgets(buf, BUFSIZ, f);
-        buf[BUFSIZ - 1] = 0;
-        ncpu++;
+        if (fgets(buf, BUFSIZ, f) != NULL) {
+            buf[BUFSIZ - 1] = 0;
+            ncpu++;
+        }
     } while (!(strncmp(buf, "cpu", 3) || feof(f)));
     if (strncmp(buf, "cpu", 3)) {
         ncpu--;
@@ -466,7 +473,6 @@ int readstat(uint64_t *d) {
     fclose(f);
     return ncpu;
 }
-#endif
 
 long tvdiff(struct timeval *start, struct timeval *end) {
     struct timeval tv;
@@ -477,12 +483,9 @@ long tvdiff(struct timeval *start, struct timeval *end) {
     return rv;
 }
 
-#ifdef SHOW_STATISTICS
 void *watchstat(void *arg) {
     uint64_t orig[S_MAX], data[S_MAX];
-#ifdef REPORT_MEM
     uint64_t mem;
-#endif
     struct wire otw;
     int i;
     fd_set *f = (fd_set *)arg;
@@ -501,9 +504,9 @@ void *watchstat(void *arg) {
     }
     orig[S_TOT] = 0;
     for (i = 0; i < S_TOT; i++) {
-	if (i != S_IDLE) {
-	    orig[S_TOT] += orig[i] / ncpu;
-	}
+	    if (i != S_IDLE) {
+	        orig[S_TOT] += orig[i] / ncpu;
+	    }
     }
     for (;;) {
         if (gettimeofday(&tv2, NULL) < 0) {
@@ -553,7 +556,7 @@ void *watchstat(void *arg) {
         otw.len = htons(h);
         otw.proto = 61; /* 61 is any host-internal protocol */
 
-        logpkt(&otw, NULL);
+        logpkt(&otw);
         pthread_mutex_lock(&biglock);
         for (i = 0; i < FD_SETSIZE; i++) if (FD_ISSET(i, f)) {
             if (send(i, &otw, sizeof (otw), MSG_NOSIGNAL) < 0) {
@@ -565,7 +568,6 @@ void *watchstat(void *arg) {
         }
         pthread_mutex_unlock(&biglock);
 
-#ifdef REPORT_MEM
         mem = readmem();
         otw.saddr = 2;
         otw.daddr = 2;
@@ -575,7 +577,7 @@ void *watchstat(void *arg) {
         otw.len = htons((uint16_t)(mem >> 8));
         otw.proto = 61; /* 61 is any host-internal protocol */
 
-        logpkt(&otw, NULL);
+        logpkt(&otw);
         pthread_mutex_lock(&biglock);
         for (i = 0; i < FD_SETSIZE; i++) if (FD_ISSET(i, f)) {
             if (send(i, &otw, sizeof (otw), MSG_NOSIGNAL) < 0) {
@@ -586,12 +588,10 @@ void *watchstat(void *arg) {
             }
         }
         pthread_mutex_unlock(&biglock);
-#endif
         memcpy(orig, data, S_MAX * sizeof (uint64_t));
     }
     return (void *)2;
 }
-#endif
 
 int pcprintf(char *dest, size_t len, char const *format, const char *ip, const char *mac) {
     char const *src;
@@ -637,9 +637,7 @@ int main(int argc, char *argv[]) {
     int sock;
     struct sockaddr_in sin, lan;
     pthread_t ptaccess;
-#ifdef SHOW_STATISTICS
     pthread_t ptcpu;
-#endif
 #if 0
     bpf_u_int32 ip, mask;
 #endif
@@ -888,7 +886,6 @@ int main(int argc, char *argv[]) {
     }
     pthread_detach(ptaccess);
 
-#ifdef SHOW_STATISTICS
     if (pthread_create(&ptcpu, NULL, watchstat, (void *)&bigfs) < 0) {
         fprintf(stderr, "%s: pthread_create CPU: %s\n",
             argv[0], strerror(errno));
@@ -896,7 +893,6 @@ int main(int argc, char *argv[]) {
     } else {
         pthread_detach(ptcpu);
     }
-#endif
 
     result = pcap_loop(pch, -1, blastpacket, (u_char *)&bigfs);
     if (result == PCAP_ERROR) {
@@ -908,10 +904,8 @@ int main(int argc, char *argv[]) {
     } else {
     }
 
-#ifdef SHOW_STATISTICS
     pthread_cancel(ptcpu);
 abend:
-#endif
     pthread_cancel(ptaccess);
     pcap_close(pch);
     for (i = 0; i < FD_SETSIZE; i++) {

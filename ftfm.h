@@ -23,12 +23,8 @@ See the file LICENSE which should have accompanied this software. */
 #define TIMEOUT_MS 10
 #define TIMEOUT_US 100000
 
-#ifdef SHOW_STATISTICS
 #define FLOWID_CPU 0xFFFFFFFF
-#ifdef REPORT_MEM
 #define FLOWID_MEM 0xFFFFFFFE
-#endif
-#endif
 
 struct ip_pkt {
     struct iphdr h;
@@ -56,10 +52,7 @@ struct wire {
     uint16_t sport;
     uint16_t dport;
     uint16_t len;
-#if 1 || defined(USE_MGEN) || defined(SHOW_STATISTICS)
-    /* Breaks old on-the-wire-format, but no old clients should still exist. */
     uint32_t flowid;
-#endif
     uint8_t proto;
     uint8_t encapped; /* was reserved */
 } __attribute__ ((__packed__));

@@ -77,6 +77,10 @@ static void addconn(char *s) {
         }
         if (nflows < 64) { /* XXX We can only look for 64 flows right now. */
             fh = realloc(flows, (nflows + 1) * sizeof (struct flow));
+        } else {
+            fprintf(stderr, "recollect: too many flows defined on line %d.\n",
+                ln);
+            fh = NULL;
         }
         if (fh != NULL) {
             flows = fh;
@@ -282,20 +286,13 @@ int clobber(int i) {
     return 0;
 }
 
-uint64_t findflow(uint16_t p
-#ifdef USE_MGEN
-    , uint32_t m
-#endif
-    ) {
+uint64_t findflow(uint16_t p, uint32_t m) {
     uint64_t rv = 0;
     int i;
 
     for (i = 0; i < nflows; i++) {
-        if ((p && (flows[i].port[0] <= p) && (flows[i].port[1] >= p))
-#ifdef USE_MGEN
-            || (m && (flows[i].mgenid[0] <= m) && (flows[i].mgenid[1] >= m))
-#endif
-            ) {
+        if ((p && (flows[i].port[0] <= p) && (flows[i].port[1] >= p)) ||
+            (m && (flows[i].mgenid[0] <= m) && (flows[i].mgenid[1] >= m))) {
             rv |= (1 << i);
         }
     }
@@ -316,31 +313,21 @@ int consume(int i) { /* Format change on 2015 08 07 */
             strerror(errno));
         fflush(stderr);
         return -1;
-#ifdef SHOW_STATISTICS
     } else if ((ntohs(otw.dport) == 1) && (ntohs(otw.sport) == 1) &&
         (otw.saddr == 1) && (otw.daddr == 1) &&
         (ntohl(otw.flowid) == FLOWID_CPU)) { /* CPU report */
         when = ntohl(otw.sec);
-        DPRINTF(0, "%u.%06d:%s:C:%u:0\n",
+        printf("%lu.%06d:%s:C:%u:0\n",
             when, ntohl(otw.usec), sys[i].s, ntohs(otw.len));
-        printf("%u.%06d:%s:C:%u:0\n",
-            when, ntohl(otw.usec), sys[i].s, ntohs(otw.len));
-#ifdef REPORT_MEM
     } else if ((ntohs(otw.dport) == 2) && (ntohs(otw.sport) == 2) &&
         (otw.saddr == 2) && (otw.daddr == 2) &&
         (ntohl(otw.flowid) == FLOWID_MEM)) { /* memory report */
         when = ntohl(otw.sec);
-        printf("%u.%06d:%s:M:%u:0\n", when, ntohl(otw.usec),
+        printf("%lu.%06d:%s:M:%u:0\n", when, ntohl(otw.usec),
             sys[i].s, (ntohs(otw.len) << 8) * 1024);
-#endif
-#endif
     } else {
         when = ntohl(otw.sec);
-        ffr = findflow(ntohs(otw.dport)
-#ifdef USE_MGEN
-            , ntohl(otw.flowid)
-#endif
-            );
+        ffr = findflow(ntohs(otw.dport), ntohl(otw.flowid));
         if (ffr == 0) { /* No flow matched */
             printf("%lu.%06d:%s:X:%u:%c\n", when, ntohl(otw.usec),
                 sys[i].s, ntohs(otw.len) * 8, otw.encapped ? '1' : '0');
@@ -350,16 +337,11 @@ int consume(int i) { /* Format change on 2015 08 07 */
                     printf("%lu.%06d:%s:%u:%u:%c\n",
                         when, ntohl(otw.usec), sys[i].s, flows[k].id,
                         ntohs(otw.len) * 8, otw.encapped ? '1' : '0');
-#if 1 || defined(ENCAP_DBLCOUNT)
                     otw.encapped++;
-#else
-                    break; /* XXX stops double-counting, for better or worse */
-#endif
                 }
             }
         }
     }
-#if 1
     if (last != otw.sec) {
         t = gmtime(&when);
         fprintf(stderr, "\r\033[2K%02d:%02d:%02d",
@@ -372,7 +354,6 @@ int consume(int i) { /* Format change on 2015 08 07 */
         fflush(stderr);
 #endif
     }
-#endif
     fflush(stdout);
     return 0;
 }

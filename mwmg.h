@@ -31,11 +31,12 @@ See the file LICENSE which should have accompanied this software. */
 #define M_BOT (cheight)
 
 enum e_wins {
-#ifdef SHOW_STATISTICS
-    W_MEM = 0, W_CPU,
-#endif
-    /* W_TIME, */
-    W_NET, W_OTHER, W_USER
+    W_MEM = 0,
+    W_CPU,
+    W_TIME,
+    W_NET,
+    W_OTHER,
+    W_USER
 };
 
 struct win {

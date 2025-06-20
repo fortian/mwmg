@@ -92,11 +92,9 @@ enum legends {
 } curleg = E_BITS;
 
 GdkPixmap *xpm = NULL;
-#ifdef SHOW_STATISTICS
 GdkPixmap *bytes = NULL;
 GdkPixmap *percent = NULL;
-#endif
-/* GdkPixmap *usec = NULL; */
+GdkPixmap *usec = NULL;
 GtkSpinButton *wallsec = NULL;
 GtkSpinButton *simsec = NULL;
 GtkSpinButton *cursec = NULL;
@@ -175,23 +173,15 @@ static void blank(int which, int winno) {
     }
     gdk_gc_set_foreground(win->gc, &win->col[0]);
 
-#ifdef SHOW_STATISTICS
     if (which == W_CPU) {
         px = percent;
-#ifdef REPORT_MEM
     } else if (which == W_MEM) {
         px = bytes;
-#endif
-#if 0
     } else if (which == W_TIME) {
         px = usec;
-#endif
     } else {
         px = xpm;
     }
-#else
-    px = xpm;
-#endif
     gdk_window_get_size(px, NULL, &h);
     gdk_draw_pixmap(win->dbs[winno], win->gc, px, 0, 0,
         ALLOC_WIDTH(win->das[winno]) - win->rm[winno] + 2,
@@ -338,14 +328,7 @@ static GtkWindow *create_selector(char const *title) {
                 GTK_SIGNAL_FUNC(expose_color), (gpointer)(long)(2 * i));
             gtk_widget_show(qq);
 
-            if (1
-#ifdef SHOW_STATISTICS
-#ifdef REPORT_MEM
-                && (i != W_MEM)
-#endif
-                && (i != W_CPU)
-#endif
-               ) {
+            if ((i != W_MEM) && (i != W_CPU)) {
                 qq = gtk_drawing_area_new();
                 gtk_drawing_area_size(GTK_DRAWING_AREA(qq),
                     COLORSIZE, COLORSIZE);
@@ -402,11 +385,9 @@ static gint configure_event(GtkWidget *w, GdkEventConfigure *e, gpointer gp) {
 
 #include "bits.xpm"
 #include "reqs.xpm"
-#ifdef SHOW_STATISTICS
 #include "bytes.xpm"
 #include "percent.xpm"
-    /* #include "usec.xpm" */
-#endif
+#include "usec.xpm"
 
     curs = gdk_cursor_new(GDK_CROSS);
     gdk_window_set_cursor(w->window, curs);
@@ -433,7 +414,6 @@ static gint configure_event(GtkWidget *w, GdkEventConfigure *e, gpointer gp) {
             NULL, (curleg == E_BITS) ? bits_xpm : reqs_xpm);
 #endif
     }
-#ifdef SHOW_STATISTICS
     if (bytes == NULL) {
         bytes = gdk_pixmap_create_from_xpm_d(win->das[ofs]->widget.window, NULL,
             NULL, bytes_xpm);
@@ -442,13 +422,10 @@ static gint configure_event(GtkWidget *w, GdkEventConfigure *e, gpointer gp) {
         percent = gdk_pixmap_create_from_xpm_d(win->das[ofs]->widget.window,
             NULL, NULL, percent_xpm);
     }
-#endif
-#if 0
     if (usec == NULL) {
         usec = gdk_pixmap_create_from_xpm_d(win->das[ofs]->widget.window, NULL,
             NULL, usec_xpm);
     }
-#endif
 
     if (ofs) {
         /* Readjust sperpx and the right margin. */
@@ -709,7 +686,6 @@ double drawymarks(int which, int ofs, double max) {
     y = ALLOC_HEIGHT(win->das[ofs]) - M_BOT + cheight / 2 - 3;
     for (i = 0; i <= NYMARKS; i++) {
         mar = i * max / NYMARKS;
-#ifdef SHOW_STATISTICS
         if (which == W_MEM) {
             if (mar < 1024.0) {
                 snprintf(str, 256, "%4g", mar);
@@ -724,7 +700,6 @@ double drawymarks(int which, int ofs, double max) {
                 strcpy(&str[3], "G");
             }
         } else {
-#endif
             if (mar < 1000.0) {
                 snprintf(str, 256, "%4g", mar);
             } else if (mar < 1000000.0) {
@@ -737,9 +712,7 @@ double drawymarks(int which, int ofs, double max) {
                 snprintf(str, 256, "%3.3f", mar / 1000000000.0);
                 strcpy(&str[3], "G");
             }
-#ifdef SHOW_STATISTICS
         }
-#endif
         str[255] = 0;
         gdk_draw_string(win->dbs[ofs], font, BLACK_GC(win->das[ofs]), 1, y,
             str);
@@ -1034,12 +1007,10 @@ void update_bottom(int which, int draww, int drawh) {
                     (gauge ? 1 : interval);
                 ax += ((double)win->samps[(i + j + DEFTLEN) * nsys + m] /
                     sperpx) / (gauge ? 1 : interval);
-#ifdef SHOW_STATISTICS
-                if (((which == W_CPU) /* || (which == W_MEM) ||
-                                         (which == W_TIME) */) && win->samps[(i + j) * nsys + m]) {
+                if (((which == W_CPU) || (which == W_MEM) ||
+                    (which == W_TIME)) && win->samps[(i + j) * nsys + m]) {
                     reps++;
                 }
-#endif
             }
         }
         if (reps) {
@@ -1062,12 +1033,10 @@ void update_bottom(int which, int draww, int drawh) {
                     (gauge ? 1 : interval);
                 bx += ((double)win->samps[(i + j + DEFTLEN) * nsys + m] /
                     sperpx) / (gauge ? 1 : interval);
-#ifdef SHOW_STATISTICS
-                if (((which == W_CPU) /* || (which == W_MEM) ||
-                                         (which == W_TIME) */) && win->samps[(i + j) * nsys + m]) {
+                if (((which == W_CPU) || (which == W_MEM) ||
+                    (which == W_TIME)) && win->samps[(i + j) * nsys + m]) {
                     reps++;
                 }
-#endif
             }
         }
         if (reps) {
@@ -1229,14 +1198,10 @@ static void readin(gpointer data, gint source, GdkInputCondition condition) {
 
     if (idx[0] == 'X') {
         flow = W_OTHER;
-#ifdef SHOW_STATISTICS
     } else if (idx[0] == 'C') {
         flow = W_CPU;
-#ifdef REPORT_MEM
     } else if (idx[0] == 'M') {
         flow = W_MEM;
-#endif
-#endif
     } else {
         flow = atoi(idx) + W_USER - 1;
     }
@@ -1416,24 +1381,18 @@ int main(int argc, char *argv[]) {
     cwidth = gdk_char_width(font, 'X');
     cheight = font->ascent + font->descent + 1;
 
-#ifdef SHOW_STATISTICS
-#ifdef REPORT_MEM
     wins[W_MEM].name = strdup("Memory Utilization");
     wins[W_MEM].samps = falloc(W_MEM, curtime);
     wins[W_MEM].rm[0] = wins[W_MEM].rm[1] = M_RIGHT;
     wins[W_MEM].sperpx = 1;
-#endif
     wins[W_CPU].name = strdup("Processor Utilization");
     wins[W_CPU].samps = falloc(W_CPU, curtime);
     wins[W_CPU].rm[0] = wins[W_CPU].rm[1] = M_RIGHT;
     wins[W_CPU].sperpx = 1;
-#endif
-#if 0
     wins[W_TIME].name = strdup("Delay");
     wins[W_TIME].samps = falloc(W_TIME, curtime);
     wins[W_TIME].rm[0] = wins[W_TIME].rm[1] = M_RIGHT;
     wins[W_TIME].sperpx = 1;
-#endif
 
     wins[W_NET].name = strdup("Aggregate");
     wins[W_NET].samps = falloc(W_NET, curtime); /* This might never get touched. */
@@ -1530,23 +1489,17 @@ int main(int argc, char *argv[]) {
             wins[nwins].sperpx = 1;
             nwins++;
         } else if (!strncmp(line, "Memory=", 7)) {
-#if (defined(SHOW_STATISTICS) && defined(REPORT_MEM))
             ofs = 7;
             x = 0;
             focus = W_MEM;
-#endif
         } else if (!strncmp(line, "Processor=", 10)) {
-#ifdef SHOW_STATISTICS
             ofs = 10;
             x = 0;
             focus = W_CPU;
-#endif
         } else if (!strncmp(line, "Delay=", 6)) {
-#if 0
             ofs = 6;
             x = 0;
             focus = W_TIME;
-#endif
         } else if (!strncmp(line, "Color=", 6)) {
             ofs = 6;
             x = 0;
@@ -1636,13 +1589,9 @@ int main(int argc, char *argv[]) {
 
     gdk_font_unref(font);
     gdk_pixmap_unref(xpm);
-#ifdef SHOW_STATISTICS
     gdk_pixmap_unref(bytes);
     gdk_pixmap_unref(percent);
-#endif
-#if 0
     gdk_pixmap_unref(usec);
-#endif
 
     return 0;
 }
