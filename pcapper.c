@@ -335,10 +335,10 @@ void blastpacket(u_char *ff, const struct pcap_pkthdr *head, const u_char *pkt) 
 #endif
             if (!otw.dport) {
                 hog.s_addr = p->h.saddr;
-                strcpy(sip, inet_ntoa(hog));
+                strncpy(sip, inet_ntoa(hog), 15);
                 sip[15] = 0;
                 hog.s_addr = p->h.daddr;
-                strcpy(dip, inet_ntoa(hog));
+                strncpy(dip, inet_ntoa(hog), 15);
                 dip[15] = 0;
             }
             otw.flowid = 0;
