@@ -1,5 +1,5 @@
 /* Fortian Utilization Monitor, aka MWMG or the Multi-Window Multi-Grapher
-Copyright (c) 2019, Fortian Inc.
+Copyright (c) 2025, Fortian Inc.
 All rights reserved.
 
 See the file LICENSE which should have accompanied this software. */
@@ -1278,7 +1278,7 @@ int main(int argc, char *argv[]) {
     int badflag = 0;
 
     puts("Utilization Monitor (built on " BUILD_DATE " by " BUILD_USER ")");
-    puts("Developed 2008-2019 by Fortian Inc.\n");
+    puts("Developed 2008-2025 by Fortian Inc.\n");
 
     /* gtk_set_locale(); */
     gtk_init(&argc, &argv);
