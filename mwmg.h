@@ -1,11 +1,13 @@
-#ifndef __MWMG_H
-#define __MWMG_H
-
 /* Fortian Utilization Monitor, aka MWMG or the Multi-Window Multi-Grapher
 Copyright (c) 2019, Fortian Inc.
 All rights reserved.
 
 See the file LICENSE which should have accompanied this software. */
+
+#ifndef __MWMG_H
+#define __MWMG_H
+
+#define SHOW_STATISTICS 1
 
 #include <gtk/gtk.h>
 
