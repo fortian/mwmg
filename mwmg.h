@@ -7,8 +7,6 @@ See the file LICENSE which should have accompanied this software. */
 #ifndef __MWMG_H
 #define __MWMG_H
 
-#define SHOW_STATISTICS 1
-
 #include <gtk/gtk.h>
 
 #define DEFNSYS 20
